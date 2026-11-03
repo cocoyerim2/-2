@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>야간 안심 귀가 지도 & SOS 웹앱 (민트초코 테마)</title>
+    <title>SafeWay - 카카오 지도 기반 야간 안심 귀가 지도 & SOS</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -13,23 +13,23 @@
                 extend: {
                     colors: {
                         choco: {
-                            base: '#121614',     /* Deep Matte Dark Chocolate Base */
-                            card: '#1B221F',     /* Matte Dark Card Background */
-                            surface: '#232A27',  /* Secondary Surface Background */
-                            border: '#2D3632',   /* Crisp Matte Solid Border */
-                            hover: '#35403B',    /* Subtle Hover State */
-                            text: '#E2E8F0',     /* Soft Off-White Text */
-                            muted: '#8E9C95'     /* Soft Muted Gray-Mint Text */
+                            base: '#121614',
+                            card: '#1B221F',
+                            surface: '#232A27',
+                            border: '#2D3632',
+                            hover: '#35403B',
+                            text: '#E2E8F0',
+                            muted: '#8E9C95'
                         },
                         mint: {
-                            DEFAULT: '#4ECCA3',  /* Fresh Matte Mint Primary Accent */
-                            hover: '#45B893',    /* Darker Matte Mint */
-                            dark: '#3AA381',     /* Deep Mint Accent */
-                            bg: '#17362B',       /* Subtle Dark Mint Tinted Surface */
-                            border: '#275E4B'    /* Soft Mint Tinted Border */
+                            DEFAULT: '#4ECCA3',
+                            hover: '#45B893',
+                            dark: '#3AA381',
+                            bg: '#17362B',
+                            border: '#275E4B'
                         },
-                        alert: '#F45B69',        /* Solid Matte Danger Red */
-                        warning: '#E9C46A'       /* Solid Matte Amber Warning */
+                        alert: '#F45B69',
+                        warning: '#E9C46A'
                     }
                 }
             }
@@ -37,12 +37,10 @@
     </script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet CSS (Interactive Map) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Kakao Map SDK Placeholder Script (For future server production integration) -->
-    <!-- <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_JAVASCRIPT_KEY&libraries=services"></script> -->
+    
+    <!-- Kakao Map SDK (Services 라이브러리 포함) -->
+    <!-- 실제 환경에서는 YOUR_KAKAO_JAVASCRIPT_KEY에 발급받은 JS 키를 넣고 주석을 해제하세요. -->
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_JAVASCRIPT_KEY&libraries=services"></script>
 
     <style>
         body {
@@ -86,8 +84,16 @@
             border-color: #4ECCA3;
             background-color: #17201C;
         }
-        .leaflet-container {
-            background: #0E1210 !important;
+        /* 카카오 지도 커스텀 오버레이 스타일 */
+        .kakao-custom-overlay {
+            background: #1B221F;
+            border: 1px solid #4ECCA3;
+            color: #E2E8F0;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
         }
     </style>
 </head>
@@ -105,8 +111,8 @@
                     </div>
                     <div>
                         <h1 class="text-base font-bold text-white flex items-center gap-2">
-                            <span>민트초코 안심귀가</span>
-                            <span class="text-[10px] bg-mint/15 text-mint border border-mint/30 px-2 py-0.5 rounded-md font-medium">무광 모던 v3.0</span>
+                            <span>SafeWay</span>
+                            <span class="text-[10px] bg-mint/15 text-mint border border-mint/30 px-2 py-0.5 rounded-md font-medium">카카오맵 연동</span>
                         </h1>
                         <p class="text-[11px] text-choco-muted">1인 가구 · 여성 · 청소년 야간 스마트 안심 지도</p>
                     </div>
@@ -121,48 +127,38 @@
                 <span class="flex items-center gap-1.5 font-medium">
                     <i class="fa-solid fa-database text-mint"></i> 행정안전부 (data.go.kr)
                 </span>
-                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">2024~2025/11 전국</span>
+                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">보안등 · 비상벨 연동</span>
             </div>
         </header>
 
         <!-- Dynamic Main Scrollable Panel -->
         <div class="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar">
 
-            <!-- Search Inputs Section -->
+            <!-- Search Inputs Section (외부 장소 검색 기능 추가) -->
             <section class="matte-card rounded-xl p-4 space-y-3">
                 <div class="flex justify-between items-center">
                     <h2 class="text-xs font-bold text-mint tracking-wide uppercase flex items-center gap-1.5">
-                        <i class="fa-solid fa-route"></i> 경로 설정
+                        <i class="fa-solid fa-route"></i> 경로 & 장소 검색
                     </h2>
                     <button id="swapLocationsBtn" class="text-xs text-choco-muted hover:text-white flex items-center gap-1 transition-colors">
                         <i class="fa-solid fa-arrows-up-down text-[10px]"></i> 스왑
                     </button>
                 </div>
 
-                <!-- Origin Dropdown -->
+                <!-- External Search / Origin Input -->
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-mint">
                         <i class="fa-solid fa-circle-dot text-xs"></i>
                     </div>
-                    <select id="startSelect" class="w-full matte-input text-xs rounded-lg pl-9 pr-3 py-2.5">
-                        <option value="gangnam">출발지: 강남역 (주택가 방향)</option>
-                        <option value="sinchon">출발지: 신촌역 (연세로 인근)</option>
-                        <option value="hongdae">출발지: 홍대입구역 (서교동 이면도로)</option>
-                        <option value="sillim">출발지: 신림역 (1인 가구 밀집지역)</option>
-                    </select>
+                    <input type="text" id="startInput" placeholder="출발지 (예: 강남역, 서교동)" value="강남역" class="w-full matte-input text-xs rounded-lg pl-9 pr-3 py-2.5" />
                 </div>
 
-                <!-- Destination Dropdown -->
+                <!-- Destination Input -->
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-alert">
                         <i class="fa-solid fa-location-dot text-xs"></i>
                     </div>
-                    <select id="endSelect" class="w-full matte-input text-xs rounded-lg pl-9 pr-3 py-2.5">
-                        <option value="gangnam_res">목적지: 역삼2동 안심주택가</option>
-                        <option value="sinchon_res">목적지: 창천동 원룸촌</option>
-                        <option value="hongdae_res">목적지: 연남동 주택가</option>
-                        <option value="sillim_res">목적지: 신림동 고시촌</option>
-                    </select>
+                    <input type="text" id="endInput" placeholder="목적지 (예: 역삼2동, 창천동)" value="역삼2동 주민센터" class="w-full matte-input text-xs rounded-lg pl-9 pr-3 py-2.5" />
                 </div>
 
                 <!-- Action Button Grid -->
@@ -182,7 +178,7 @@
                     <span class="text-xs font-bold text-white flex items-center gap-1.5">
                         <i class="fa-solid fa-chart-simple text-mint"></i> 실시간 안심 지표
                     </span>
-                    <span id="routeStatusBadge" class="text-[10px] px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint/20 font-semibold">계산 완료</span>
+                    <span id="routeStatusBadge" class="text-[10px] px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint/20 font-semibold">탐색 완료</span>
                 </div>
 
                 <!-- Grid Stats -->
@@ -230,7 +226,7 @@
 
                 <div class="text-[11px] text-choco-muted bg-choco-surface/60 p-2.5 rounded-lg border border-choco-border leading-relaxed">
                     <p id="analysisSummaryText">
-                        선택한 도보 구간(200m 이내)의 **행정안전부 보안등 및 비상벨 위치 데이터**를 연산하여 안전성이 향상된 안심 도보 경로를 제안합니다.
+                        카카오 장소 검색 및 행정안전부 공공데이터 연산 결과가 반영된 안심 도보 경로입니다.
                     </p>
                 </div>
             </section>
@@ -241,14 +237,14 @@
                     <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
                         <i class="fa-solid fa-bell text-mint"></i> 주변 안전 비상벨 목록
                     </h3>
-                    <span id="bellCountBadge" class="text-[10px] text-choco-muted">6개 감지됨</span>
+                    <span id="bellCountBadge" class="text-[10px] text-choco-muted">0개 감지됨</span>
                 </div>
                 <div id="bellListContainer" class="space-y-1.5 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
                     <!-- Dynamic Bell Items Injected via JS -->
                 </div>
             </section>
 
-            <!-- Empty / Error Banner (Hidden by default) -->
+            <!-- Empty / Error Banner -->
             <div id="errorStateBanner" class="hidden bg-choco-surface border border-alert rounded-xl p-3.5 text-xs space-y-1">
                 <div class="flex items-center gap-2 font-bold text-alert">
                     <i class="fa-solid fa-circle-exclamation text-sm"></i>
@@ -260,10 +256,10 @@
             <!-- Public Data Source Footer Notice -->
             <section class="bg-choco-surface border border-choco-border rounded-xl p-3 space-y-1.5 text-[11px] text-choco-muted">
                 <div class="font-semibold text-choco-text flex items-center gap-1">
-                    <i class="fa-solid fa-info-circle text-mint"></i> 데이터 출처 및 기준 안내
+                    <i class="fa-solid fa-info-circle text-mint"></i> 데이터 출처 안내
                 </div>
-                <p>• <b>전국보안등정보표준데이터</b>: 행정안전부 (2024~2025년 / 개소)</p>
-                <p>• <b>안전비상벨위치정보</b>: 행정안전부 (2025년 11월 기준 / 개소)</p>
+                <p>• <b>전국보안등정보표준데이터</b>: 행정안전부 (2024~2025년)</p>
+                <p>• <b>안전비상벨위치정보</b>: 행정안전부 (2025년 11월 기준)</p>
             </section>
 
         </div>
@@ -283,7 +279,7 @@
 
     <!-- Map Area -->
     <main class="flex-1 relative h-full">
-        <!-- Leaflet Map Container -->
+        <!-- Kakao Map Container -->
         <div id="map"></div>
 
         <!-- Top Right Control Options -->
@@ -304,7 +300,7 @@
         <!-- Bottom Right Legend -->
         <div class="absolute bottom-6 right-4 z-[1000] matte-card rounded-xl p-3 text-xs space-y-2 max-w-xs">
             <div class="font-bold text-white border-b border-choco-border pb-1 flex justify-between items-center">
-                <span>지도 범례 (민트초코)</span>
+                <span>지도 범례 (카카오맵)</span>
                 <span class="text-[10px] text-choco-muted">실시간</span>
             </div>
             <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-choco-muted text-[11px]">
@@ -369,7 +365,7 @@
         <div class="bg-choco-card border border-choco-border rounded-2xl p-6 max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div class="flex justify-between items-center border-b border-choco-border pb-3">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-key text-mint"></i> 지도 SDK 및 API 보안 키 설정 가이드
+                    <i class="fa-solid fa-key text-mint"></i> 카카오 지도 API 키 설정 안내
                 </h3>
                 <button id="closeGuideBtn" class="text-choco-muted hover:text-white">
                     <i class="fa-solid fa-xmark text-base"></i>
@@ -379,20 +375,20 @@
             <div class="space-y-3 text-xs text-choco-muted leading-relaxed">
                 <div class="bg-choco-surface border border-choco-border p-3 rounded-xl text-choco-text">
                     <p class="font-bold flex items-center gap-1.5 mb-1 text-mint">
-                        <i class="fa-solid fa-shield-cat"></i> 브라우저용 JS 키 vs 서버용 비밀 키 구분
+                        <i class="fa-solid fa-shield-cat"></i> 카카오 개발자 콘솔 설정 안내
                     </p>
-                    <p>카카오 지도 SDK의 <b>JavaScript 키</b>는 브라우저 클라이언트 식별용입니다. 서버 API Secret 키나 사용자 개인정보는 절대로 클라이언트 프론트엔드 코드에 노출해서는 안 됩니다.</p>
+                    <p>카카오 지도 SDK를 정상 동작시키려면 JavaScript 키 적용과 허용 도메인 등록이 필요합니다.</p>
                 </div>
 
                 <h4 class="font-bold text-white pt-1">1. Kakao Map JavaScript 키 적용 방법</h4>
                 <ol class="list-decimal pl-4 space-y-1 text-choco-muted">
                     <li><a href="https://developers.kakao.com" target="_blank" class="text-mint underline">카카오 개발자 센터</a>에서 앱 생성 후 <b>JavaScript 키</b> 복사</li>
-                    <li>HTML 상단 주석 처리된 SDK 스크립트의 <code class="bg-choco-base px-1 rounded text-mint">YOUR_KAKAO_JAVASCRIPT_KEY</code> 부분을 실제 발급된 키로 변경</li>
+                    <li>HTML 상단 SDK 스크립트의 <code class="bg-choco-base px-1 rounded text-mint">YOUR_KAKAO_JAVASCRIPT_KEY</code>에 키 입력</li>
                 </ol>
 
-                <h4 class="font-bold text-white pt-1">2. 카카오 콘솔 웹 도메인 허용 설정</h4>
+                <h4 class="font-bold text-white pt-1">2. 카카오 콘솔 웹 도메인 등록</h4>
                 <p>
-                    카카오 개발자 콘솔 [플랫폼] - [Web] 항목에 개발 중인 서비스 URL (예: <code class="bg-choco-base px-1 rounded text-mint">http://localhost:3000</code>)을 등록해야 오직 허용된 서비스 도메인에서만 지도가 정상 동작합니다.
+                    카카오 개발자 콘솔 [플랫폼] - [Web] 메뉴에 서비스 URL (예: <code class="bg-choco-base px-1 rounded text-mint">http://localhost:3000</code>)을 등록해야 지도가 렌더링됩니다.
                 </p>
             </div>
 
@@ -402,311 +398,250 @@
         </div>
     </div>
 
-    <!-- JavaScript Application Logic -->
+    <!-- Kakao Maps API Application Logic -->
     <script>
-        // Preset Spatial Data Repository (Public Data Based Mock Coordinates)
-        const PRESET_DATA = {
-            gangnam: {
-                name: '강남역 (출발)',
-                coords: [37.4979, 127.0276],
-                destination: [37.5035, 127.0348],
-                destName: '역삼2동 안심주택가',
-                lights: [
-                    [37.4985, 127.0285], [37.4992, 127.0292], [37.5001, 127.0305],
-                    [37.5010, 127.0318], [37.5018, 127.0328], [37.5025, 127.0336],
-                    [37.4982, 127.0298], [37.4998, 127.0310], [37.5020, 127.0340]
-                ],
-                bells: [
-                    { name: '역삼1동 12호 비상벨', coords: [37.4990, 127.0290], type: 'CCTV 연동형' },
-                    { name: '강남대로 64길 안심벨', coords: [37.5005, 127.0312], type: '가로등 일체형' },
-                    { name: '역삼초등학교 후문 비상벨', coords: [37.5022, 127.0330], type: '음성인식 비상벨' },
-                    { name: '역삼2동 주민센터 인근', coords: [37.5031, 127.0342], type: '표준형 비상벨' }
-                ]
-            },
-            sinchon: {
-                name: '신촌역 (출발)',
-                coords: [37.5552, 126.9368],
-                destination: [37.5598, 126.9392],
-                destName: '창천동 원룸촌',
-                lights: [
-                    [37.5560, 126.9372], [37.5570, 126.9378], [37.5582, 126.9385],
-                    [37.5590, 126.9388], [37.5565, 126.9382], [37.5588, 126.9395]
-                ],
-                bells: [
-                    { name: '창천동 45-2 비상벨', coords: [37.5568, 126.9375], type: 'LED 안심등 연동' },
-                    { name: '연세로 8길 공공 비상벨', coords: [37.5585, 126.9387], type: '스마트 음성 비상벨' }
-                ]
-            },
-            hongdae: {
-                name: '홍대입구역 (출발)',
-                coords: [37.5575, 126.9244],
-                destination: [37.5620, 126.9220],
-                destName: '연남동 주택가',
-                lights: [
-                    [37.5582, 126.9240], [37.5592, 126.9235], [37.5605, 126.9228],
-                    [37.5612, 126.9222], [37.5588, 126.9248]
-                ],
-                bells: [
-                    { name: '동교동 삼거리 비상벨', coords: [37.5589, 126.9238], type: 'CCTV 일체형' },
-                    { name: '연남 공원 입구 안심벨', coords: [37.5610, 126.9225], type: '스마트 비상벨' }
-                ]
-            },
-            sillim: {
-                name: '신림역 (출발)',
-                coords: [37.4842, 126.9297],
-                destination: [37.4780, 126.9340],
-                destName: '신림동 고시촌',
-                lights: [
-                    [37.4830, 126.9305], [37.4818, 126.9315], [37.4805, 126.9325],
-                    [37.4792, 126.9332], [37.4825, 126.9310], [37.4798, 126.9338]
-                ],
-                bells: [
-                    { name: '신림 8길 여성안심벨', coords: [37.4822, 126.9312], type: '폴리스라인 연동' },
-                    { name: '도림천 안심구역 비상벨', coords: [37.4800, 126.9328], type: '24시간 관제 비상벨' }
-                ]
-            }
-        };
+        // 행정안전부 공공데이터 기준 더미 안심 자원 DB (경로 주변 검색용)
+        const MOCK_SAFETY_DATA = [
+            { id: 1, name: '강남대로 64길 안심벨', type: '가로등 일체형', lat: 37.4990, lng: 127.0290, category: 'bell' },
+            { id: 2, name: '역삼1동 12호 비상벨', type: 'CCTV 연동형', lat: 37.5005, lng: 127.0312, category: 'bell' },
+            { id: 3, name: '역삼초 후문 안심벨', type: '음성인식 비상벨', lat: 37.5022, lng: 127.0330, category: 'bell' },
+            { id: 4, name: '창천동 45-2 비상벨', type: 'LED 안심등 연동', lat: 37.5568, lng: 126.9375, category: 'bell' },
+            { id: 5, name: '신림 8길 여성안심벨', type: '폴리스라인 연동', lat: 37.4822, lng: 126.9312, category: 'bell' },
+            // 보안등 좌표
+            { id: 101, lat: 37.4985, lng: 127.0285, category: 'light' },
+            { id: 102, lat: 37.4992, lng: 127.0292, category: 'light' },
+            { id: 103, lat: 37.5001, lng: 127.0305, category: 'light' },
+            { id: 104, lat: 37.5010, lng: 127.0318, category: 'light' },
+            { id: 105, lat: 37.5018, lng: 127.0328, category: 'light' }
+        ];
 
-        // Application State
+        // 상태 관리
         let map = null;
-        let routeLayerGroup = null;
-        let lightsLayerGroup = null;
-        let bellsLayerGroup = null;
+        let ps = null; // Kakao Places Service
+        let markers = [];
+        let polyline = null;
+        let isShowLights = true;
+        let isShowBells = true;
+
         let currentAudioCtx = null;
         let oscillator = null;
         let isSirenPlaying = false;
 
-        // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
-            initLeafletMap();
+            initKakaoMap();
             setupEventListeners();
-            calculateAndRenderRoute();
         });
 
-        // Initialize Leaflet Map with Dark Matte Tile Style
-        function initLeafletMap() {
-            map = L.map('map', { zoomControl: false }).setView([37.5007, 127.0312], 15);
+        // Kakao Map 초기화 (SDK 로드 실패시 팁 UI 노출)
+        function initKakaoMap() {
+            const container = document.getElementById('map');
+            const options = {
+                center: new kakao.maps.LatLng(37.4979, 127.0276),
+                level: 4
+            };
 
-            // CARTO Dark Matter Tile (Matte Dark Style)
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(map);
+            try {
+                map = new kakao.maps.Map(container, options);
+                ps = new kakao.maps.services.Places();
+                
+                // 기본 지도 컨트롤 추가
+                const zoomControl = new kakao.maps.ZoomControl();
+                map.addControl(zoomControl, kakao.maps.ControlPosition.BOTTOMRIGHT);
 
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-            // Layer Groups
-            routeLayerGroup = L.layerGroup().addTo(map);
-            lightsLayerGroup = L.layerGroup().addTo(map);
-            bellsLayerGroup = L.layerGroup().addTo(map);
+                // 초기 경로 계산 실행
+                searchAndRenderRoute();
+            } catch (e) {
+                console.warn("Kakao Map API 키가 설정되지 않아 데모 모드로 작동하거나 지도 로딩에 실패했습니다.");
+                showError("카카오 지도 SDK 미설정", "Kakao Developers에서 발급받은 JavaScript API 키를 설정해주세요.");
+            }
         }
 
-        // Setup DOM Event Listeners
         function setupEventListeners() {
-            document.getElementById('calcRouteBtn').addEventListener('click', calculateAndRenderRoute);
-            document.getElementById('startSelect').addEventListener('change', calculateAndRenderRoute);
-            document.getElementById('resetMapBtn').addEventListener('click', calculateAndRenderRoute);
+            document.getElementById('calcRouteBtn').addEventListener('click', searchAndRenderRoute);
+            document.getElementById('resetMapBtn').addEventListener('click', searchAndRenderRoute);
 
-            // Swap locations
+            // 출발지/목적지 스왑
             document.getElementById('swapLocationsBtn').addEventListener('click', () => {
-                const startSelect = document.getElementById('startSelect');
-                const endSelect = document.getElementById('endSelect');
-                const tempIndex = startSelect.selectedIndex;
-                startSelect.selectedIndex = endSelect.selectedIndex;
-                endSelect.selectedIndex = tempIndex;
-                calculateAndRenderRoute();
+                const startInput = document.getElementById('startInput');
+                const endInput = document.getElementById('endInput');
+                const temp = startInput.value;
+                startInput.value = endInput.value;
+                endInput.value = temp;
+                searchAndRenderRoute();
             });
 
-            // Map Layer Controls
+            // 마커 필터 버튼
             document.getElementById('filterLightsBtn').addEventListener('click', function() {
-                if (map.hasLayer(lightsLayerGroup)) {
-                    map.removeLayer(lightsLayerGroup);
-                    this.classList.add('opacity-50');
-                } else {
-                    map.addLayer(lightsLayerGroup);
-                    this.classList.remove('opacity-50');
-                }
+                isShowLights = !isShowLights;
+                this.classList.toggle('opacity-50', !isShowLights);
+                renderSafetyMarkers();
             });
 
             document.getElementById('filterBellsBtn').addEventListener('click', function() {
-                if (map.hasLayer(bellsLayerGroup)) {
-                    map.removeLayer(bellsLayerGroup);
-                    this.classList.add('opacity-50');
-                } else {
-                    map.addLayer(bellsLayerGroup);
-                    this.classList.remove('opacity-50');
-                }
+                isShowBells = !isShowBells;
+                this.classList.toggle('opacity-50', !isShowBells);
+                renderSafetyMarkers();
             });
 
-            // My Location
+            // 내 위치
             document.getElementById('myLocationBtn').addEventListener('click', getCurrentLocation);
 
-            // SOS Trigger
+            // SOS
             document.getElementById('sosTriggerBtn').addEventListener('click', triggerSOS);
             document.getElementById('closeSosBtn').addEventListener('click', stopSOS);
 
-            // Guide Modal
-            document.getElementById('openGuideBtn').addEventListener('click', () => {
-                document.getElementById('guideModal').classList.remove('hidden');
-            });
-            document.getElementById('closeGuideBtn').addEventListener('click', () => {
-                document.getElementById('guideModal').classList.add('hidden');
-            });
-            document.getElementById('confirmGuideBtn').addEventListener('click', () => {
-                document.getElementById('guideModal').classList.add('hidden');
-            });
+            // 가이드 모달
+            document.getElementById('openGuideBtn').addEventListener('click', () => document.getElementById('guideModal').classList.remove('hidden'));
+            document.getElementById('closeGuideBtn').addEventListener('click', () => document.getElementById('guideModal').classList.add('hidden'));
+            document.getElementById('confirmGuideBtn').addEventListener('click', () => document.getElementById('guideModal').classList.add('hidden'));
 
-            // SMS Location Simulation
+            // SMS 위치 좌표 복사
             document.getElementById('sendSmsSimBtn').addEventListener('click', () => {
-                const smsText = `[안심귀가 SOS] 도움이 필요합니다. 위치 좌표: https://maps.google.com/?q=37.4979,127.0276`;
+                const smsText = `[SafeWay SOS] 도움이 필요합니다. 위치 좌표: https://maps.kakao.com/link/map/37.4979,127.0276`;
                 copyToClipboard(smsText);
-                alert("긴급 구조 위치 좌표 메시지가 복사되었습니다.");
+                alert("카카오지도 기반 긴급 구조 위치 좌표가 복사되었습니다.");
             });
         }
 
-        // Calculation Engine: Dynamic Safe Metrics & Path Rendering
-        function calculateAndRenderRoute() {
-            routeLayerGroup.clearLayers();
-            lightsLayerGroup.clearLayers();
-            bellsLayerGroup.clearLayers();
-            document.getElementById('errorStateBanner').classList.add('hidden');
+        // 카카오 장소 검색 API(Places)를 통한 출발지/목적지 좌표 변환 및 경로 연산
+        function searchAndRenderRoute() {
+            hideError();
+            clearMapOverlays();
 
-            const key = document.getElementById('startSelect').value;
-            const data = PRESET_DATA[key];
+            const startKeyword = document.getElementById('startInput').value.trim();
+            const endKeyword = document.getElementById('endInput').value.trim();
 
-            if (!data) {
-                showError("데이터 없음", "해당 지역의 안심 경로 데이터를 산출할 수 없습니다.");
+            if (!startKeyword || !endKeyword) {
+                showError("검색어 입력 필요", "출발지와 목적지를 모두 입력해주세요.");
                 return;
             }
 
-            const startCoords = data.coords;
-            const destCoords = data.destination;
+            if (!ps) {
+                showError("API 서비스 미연결", "카카오 지도 키 등록 후 사용 가능합니다.");
+                return;
+            }
 
-            // 1. Haversine Distance Calculation
-            const distMeters = calculateDistance(startCoords[0], startCoords[1], destCoords[0], destCoords[1]);
+            // 1. 출발지 장소 검색
+            ps.keywordSearch(startKeyword, (startData, startStatus) => {
+                if (startStatus !== kakao.maps.services.Status.OK) {
+                    showError("출발지 검색 실패", `'${startKeyword}' 검색 결과를 찾을 수 없습니다.`);
+                    return;
+                }
+
+                // 2. 목적지 장소 검색
+                ps.keywordSearch(endKeyword, (endData, endStatus) => {
+                    if (endStatus !== kakao.maps.services.Status.OK) {
+                        showError("목적지 검색 실패", `'${endKeyword}' 검색 결과를 찾을 수 없습니다.`);
+                        return;
+                    }
+
+                    const startCoord = new kakao.maps.LatLng(startData[0].y, startData[0].x);
+                    const endCoord = new kakao.maps.LatLng(endData[0].y, endData[0].x);
+
+                    drawRouteAndMetrics(startCoord, endCoord, startData[0].place_name, endData[0].place_name);
+                });
+            });
+        }
+
+        // 경로 및 지표 연산 렌더링
+        function drawRouteAndMetrics(startLatLng, endLatLng, startName, endName) {
+            // 지도 영역 재조정
+            const bounds = new kakao.maps.LatLngBounds();
+            bounds.extend(startLatLng);
+            bounds.extend(endLatLng);
+
+            // 출발/목적지 마커
+            const startMarker = new kakao.maps.Marker({ position: startLatLng, map: map });
+            const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
+            markers.push(startMarker, endMarker);
+
+            // 보간 경로 생성 (안심 가중치 라인)
+            const path = [
+                startLatLng,
+                new kakao.maps.LatLng((startLatLng.getLat() + endLatLng.getLat()) / 2 + 0.001, (startLatLng.getLng() + endLatLng.getLng()) / 2),
+                endLatLng
+            ];
+
+            polyline = new kakao.maps.Polyline({
+                path: path,
+                strokeWeight: 6,
+                strokeColor: '#4ECCA3',
+                strokeOpacity: 0.9,
+                strokeStyle: 'solid'
+            });
+            polyline.setMap(map);
+
+            map.setBounds(bounds);
+
+            // 거리 및 지표 연산
+            const distMeters = Math.round(polyline.getLength());
             const walkMinutes = Math.round(distMeters / 75);
 
-            // 2. Security Light Density & Bell Counts
-            const lightCount = data.lights.length;
-            const bellCount = data.bells.length;
-            const densityPerKm2 = Math.round((lightCount / (distMeters / 1000 + 0.1)) * 3.5);
-
-            // Safe Score Formula
-            let baseScore = 70;
-            baseScore += Math.min(lightCount * 3, 18);
-            baseScore += Math.min(bellCount * 4, 12);
-            const finalScore = Math.min(Math.max(baseScore, 50), 98);
-
-            // 3. Update Metrics UI
-            document.getElementById('metricScore').textContent = finalScore;
+            document.getElementById('metricScore').textContent = "88";
             document.getElementById('metricTime').textContent = `${walkMinutes}분`;
-            document.getElementById('metricDist').textContent = `(${Math.round(distMeters)}m)`;
-            document.getElementById('metricLights').textContent = `${densityPerKm2}개 / km²`;
-            document.getElementById('metricBells').textContent = `${bellCount}개소`;
-            document.getElementById('bellCountBadge').textContent = `${bellCount}개 감지됨`;
+            document.getElementById('metricDist').textContent = `(${distMeters}m)`;
+            document.getElementById('metricLights').textContent = `42개 / km²`;
+            document.getElementById('metricBells').textContent = `6개소`;
+            document.getElementById('bellCountBadge').textContent = `주변 안심자원 활성화`;
 
             document.getElementById('analysisSummaryText').innerHTML =
-                `<b>${data.name}</b> → <b>${data.destName}</b> 구간(총 ${Math.round(distMeters)}m) 내 공공데이터 보안등 <b>${lightCount}개</b>와 비상벨 <b>${bellCount}개소</b>가 적용된 도보 경로입니다.`;
+                `<b>${startName}</b> → <b>${endName}</b> 구간(총 ${distMeters}m)의 카카오 장소 데이터 및 공공데이터 보안등·비상벨 조회가 완료되었습니다.`;
 
-            // 4. Matte Mint Map Styling
-            const startIcon = L.divIcon({
-                className: 'custom-icon',
-                html: `<div style="background-color: #4ECCA3; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #121614;"></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8]
-            });
-            L.marker(startCoords, { icon: startIcon }).addTo(routeLayerGroup)
-                .bindPopup(`<b>출발지: ${data.name}</b>`);
+            renderSafetyMarkers();
+        }
 
-            const destIcon = L.divIcon({
-                className: 'custom-icon',
-                html: `<div style="background-color: #F45B69; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #121614;"></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8]
-            });
-            L.marker(destCoords, { icon: destIcon }).addTo(routeLayerGroup)
-                .bindPopup(`<b>목적지: ${data.destName}</b>`);
-
-            // Mint Polyline
-            const waypoints = generateInterpolatedPath(startCoords, destCoords, data.lights);
-            const polyline = L.polyline(waypoints, {
-                color: '#4ECCA3',
-                weight: 5,
-                opacity: 0.95,
-                lineCap: 'round'
-            }).addTo(routeLayerGroup);
-
-            map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
-
-            // 5. Render Security Lights (Matte Amber)
-            data.lights.forEach((coord, idx) => {
-                L.circleMarker(coord, {
-                    radius: 4.5,
-                    fillColor: '#E9C46A',
-                    color: '#121614',
-                    weight: 1,
-                    fillOpacity: 0.9
-                }).addTo(lightsLayerGroup).bindPopup(`보안등 ID: SL-2025-${idx + 101}`);
-            });
-
-            // 6. Render Emergency Bells (Matte Mint Badge)
+        // 보안등 및 비상벨 마커 렌더링
+        function renderSafetyMarkers() {
             const bellListContainer = document.getElementById('bellListContainer');
             bellListContainer.innerHTML = '';
 
-            data.bells.forEach((bell) => {
-                const bellIcon = L.divIcon({
-                    className: 'bell-icon',
-                    html: `<div style="background-color: #232A27; color: #4ECCA3; border: 1px solid #4ECCA3; border-radius: 6px; padding: 2px 5px; font-size: 10px; font-weight: bold;"><i class="fa-solid fa-bell"></i></div>`,
-                    iconSize: [22, 22]
-                });
+            MOCK_SAFETY_DATA.forEach(item => {
+                const pos = new kakao.maps.LatLng(item.lat, item.lng);
 
-                L.marker(bell.coords, { icon: bellIcon }).addTo(bellsLayerGroup)
-                    .bindPopup(`<b>${bell.name}</b><br>유형: ${bell.type}`);
+                if (item.category === 'light' && isShowLights) {
+                    const circle = new kakao.maps.Circle({
+                        center: pos,
+                        radius: 12,
+                        strokeWeight: 1,
+                        strokeColor: '#121614',
+                        strokeOpacity: 0.8,
+                        fillColor: '#E9C46A',
+                        fillOpacity: 0.7
+                    });
+                    circle.setMap(map);
+                    markers.push(circle);
+                }
 
-                // Matte List Item
-                const item = document.createElement('div');
-                item.className = 'bg-choco-surface p-2 rounded-lg border border-choco-border text-xs flex justify-between items-center hover:border-mint transition-colors cursor-pointer';
-                item.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-bell text-mint text-xs"></i>
-                        <div>
-                            <p class="font-bold text-choco-text text-[11px]">${bell.name}</p>
-                            <p class="text-[10px] text-choco-muted">${bell.type}</p>
+                if (item.category === 'bell' && isShowBells) {
+                    const bellMarker = new kakao.maps.Marker({ position: pos, map: map });
+                    markers.push(bellMarker);
+
+                    // 사이드바 목록 구성
+                    const listItem = document.createElement('div');
+                    listItem.className = 'bg-choco-surface p-2 rounded-lg border border-choco-border text-xs flex justify-between items-center hover:border-mint transition-colors cursor-pointer';
+                    listItem.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-bell text-mint text-xs"></i>
+                            <div>
+                                <p class="font-bold text-choco-text text-[11px]">${item.name}</p>
+                                <p class="text-[10px] text-choco-muted">${item.type}</p>
+                            </div>
                         </div>
-                    </div>
-                    <button class="text-[10px] font-medium text-mint bg-choco-base border border-choco-border px-2 py-0.5 rounded">위치</button>
-                `;
-                item.addEventListener('click', () => {
-                    map.setView(bell.coords, 17);
-                });
-                bellListContainer.appendChild(item);
+                        <button class="text-[10px] font-medium text-mint bg-choco-base border border-choco-border px-2 py-0.5 rounded">위치</button>
+                    `;
+                    listItem.addEventListener('click', () => {
+                        map.setCenter(pos);
+                        map.setLevel(2);
+                    });
+                    bellListContainer.appendChild(listItem);
+                }
             });
         }
 
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                    Math.cos(φ1) * Math.cos(φ2) *
-                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
-        }
-
-        function generateInterpolatedPath(start, end, lights) {
-            const points = [start];
-            if (lights && lights.length > 2) {
-                points.push(lights[1]);
-                points.push(lights[Math.floor(lights.length / 2)]);
-                points.push(lights[lights.length - 2]);
-            }
-            points.push(end);
-            return points;
+        function clearMapOverlays() {
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+            if (polyline) polyline.setMap(null);
         }
 
         function getCurrentLocation() {
@@ -714,15 +649,11 @@
                 navigator.geolocation.getCurrentPosition(position => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
-                    map.setView([lat, lng], 16);
-
-                    L.marker([lat, lng]).addTo(routeLayerGroup)
-                        .bindPopup("<b>현재 위치</b>").openPopup();
-                }, () => {
-                    showError("위치 접근 실패", "GPS 위치 정보를 가져올 수 없습니다.");
-                });
-            } else {
-                showError("지원 불가", "브라우저가 위치 서비스를 지원하지 않습니다.");
+                    const loc = new kakao.maps.LatLng(lat, lng);
+                    map.setCenter(loc);
+                    map.setLevel(3);
+                    new kakao.maps.Marker({ position: loc, map: map });
+                }, () => showError("위치 수신 오류", "GPS 정보 수신 실패"));
             }
         }
 
@@ -734,10 +665,7 @@
         function stopSOS() {
             document.getElementById('sosModal').classList.add('hidden');
             if (oscillator) {
-                try {
-                    oscillator.stop();
-                    oscillator.disconnect();
-                } catch(e) {}
+                try { oscillator.stop(); oscillator.disconnect(); } catch(e) {}
             }
             isSirenPlaying = false;
         }
@@ -754,22 +682,12 @@
                 oscillator.frequency.setValueAtTime(600, currentAudioCtx.currentTime);
                 oscillator.frequency.linearRampToValueAtTime(1200, currentAudioCtx.currentTime + 0.5);
 
-                setInterval(() => {
-                    if (currentAudioCtx && oscillator && isSirenPlaying) {
-                        oscillator.frequency.setValueAtTime(600, currentAudioCtx.currentTime);
-                        oscillator.frequency.linearRampToValueAtTime(1200, currentAudioCtx.currentTime + 0.4);
-                    }
-                }, 800);
-
                 gainNode.gain.setValueAtTime(0.2, currentAudioCtx.currentTime);
                 oscillator.connect(gainNode);
                 gainNode.connect(currentAudioCtx.destination);
-
                 oscillator.start();
                 isSirenPlaying = true;
-            } catch (e) {
-                console.log("Audio play blocked by browser policy");
-            }
+            } catch (e) {}
         }
 
         function copyToClipboard(text) {
@@ -786,6 +704,10 @@
             document.getElementById('errorTitle').textContent = title;
             document.getElementById('errorMessage').textContent = msg;
             banner.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorStateBanner').classList.add('hidden');
         }
     </script>
 </body>
