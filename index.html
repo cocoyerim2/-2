@@ -100,7 +100,7 @@
                     <div>
                         <h1 class="text-base font-bold text-white flex items-center gap-2">
                             <span>SafeWay</span>
-                            <span class="text-[10px] bg-mint/15 text-mint border border-mint/30 px-2 py-0.5 rounded-md font-medium">오프라인/로컬 대응</span>
+                            <span class="text-[10px] bg-mint/15 text-mint border border-mint/30 px-2 py-0.5 rounded-md font-medium">카카오맵 연동</span>
                         </h1>
                         <p class="text-[11px] text-choco-muted">1인 가구 · 여성 · 청소년 야간 스마트 안심 지도</p>
                     </div>
@@ -186,8 +186,8 @@
                             <i class="fa-solid fa-person-walking text-mint"></i> 소요시간 / 거리
                         </span>
                         <div class="mt-1">
-                            <span id="metricTime" class="text-lg font-bold text-white">12분</span>
-                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(850m)</span>
+                            <span id="metricTime" class="text-lg font-bold text-white">17분</span>
+                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(1250m)</span>
                         </div>
                     </div>
 
@@ -356,7 +356,6 @@
 
     <!-- JavaScript Application Logic -->
     <script>
-        // 주요 명칭 오프라인 좌표 매핑 (file:// 환경 CORS 블록 대응)
         const LOCAL_LOCATION_MAP = {
             '한영외고': { lat: 37.5501, lng: 127.1582, name: '한영외국어고등학교' },
             '한영외국어고등학교': { lat: 37.5501, lng: 127.1582, name: '한영외국어고등학교' },
@@ -476,7 +475,6 @@
             });
         }
 
-        // 장소 검색 (온라인 Places API 시도 후 CORS 발생 시 로컬 좌표 맵으로 오프라인 자동 처리)
         function searchAndRenderRoute() {
             hideError();
             clearMapOverlays();
@@ -489,133 +487,15 @@
                 return;
             }
 
-            // 1. 온라인 카카오 검색 시도
-        // file:// 차단 환경 오프라인 좌표 처리
-        function fallbackLocalSearch(startKeyword, endKeyword) {
-            const startObj = LOCAL_LOCATION_MAP[startKeyword] || { lat: 37.5501, lng: 127.1582, name: startKeyword };
-            const endObj = LOCAL_LOCATION_MAP[endKeyword] || { lat: 37.5514, lng: 127.1439, name: endKeyword };
-
-            const startCoord = new kakao.maps.LatLng(startObj.lat, startObj.lng);
-            const endCoord = new kakao.maps.LatLng(endObj.lat, endObj.lng);
-
-            drawRouteAndMetrics(startCoord, endCoord, startObj.name, endObj.name);
-        }
-
-        function drawRouteAndMetrics(startLatLng, endLatLng, startName, endName) {
-            const bounds = new kakao.maps.LatLngBounds();
-            bounds.extend(startLatLng);
-            bounds.extend(endLatLng);
-
-            // 출발/목적지 마커 생성
-            const startMarker = new kakao.maps.Marker({ position: startLatLng, map: map });
-            const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
-            markers.push(startMarker, endMarker);
-
-            // 건물을 뚫지 않고 도로를 따라 꺾이도록 중간 경유 좌표들 구성
-            const startLat = startLatLng.getLat();
-            const startLng = startLatLng.getLng();
-            const endLat = endLatLng.getLat();
-            const endLng = endLatLng.getLng();
-
-            // 도로 격자 형태에 맞춰 꺾어지는 경로 지점 생성 (직각 꺾임 도보 경로)
-            const path = [
-                startLatLng,
-                new kakao.maps.LatLng(startLat, (startLng + endLng) / 2),
-                new kakao.maps.LatLng(endLat, (startLng + endLng) / 2),
-                endLatLng
-            ];
-
-            polyline = new kakao.maps.Polyline({
-                path: path,
-                strokeWeight: 5,
-                strokeColor: '#4ECCA3',
-                strokeOpacity: 0.9,
-                strokeStyle: 'solid'
-            });
-            polyline.setMap(map);
-
-            map.setBounds(bounds);
-
-            // 거리 및 소요시간 계산
-            const distMeters = Math.round(polyline.getLength()) || 1250;
-            const walkMinutes = Math.round(distMeters / 75) || 17;
-
-            document.getElementById('metricScore').textContent = "88";
-            document.getElementById('metricTime').textContent = `${walkMinutes}분`;
-            document.getElementById('metricDist').textContent = `(${distMeters}m)`;
-            document.getElementById('metricLights').textContent = `42개 / km²`;
-            document.getElementById('metricBells').textContent = `6개소`;
-
-            document.getElementById('analysisSummaryText').innerHTML =
-                `<b>${startName}</b> → <b>${endName}</b> 구간 안심 도보 경로 연산이 완료되었습니다.`;
-
-            renderSafetyMarkers();
-        }
-    polyline.setMap(map);
-
-    map.setBounds(bounds);
-
-    // 거리 및 소요시간 계산
-    const distMeters = Math.round(polyline.getLength()) || 1250;
-    const walkMinutes = Math.round(distMeters / 75) || 17;
-
-    document.getElementById('metricScore').textContent = "88";
-    document.getElementById('metricTime').textContent = `${walkMinutes}분`;
-    document.getElementById('metricDist').textContent = `(${distMeters}m)`;
-    document.getElementById('metricLights').textContent = `42개 / km²`;
-    document.getElementById('metricBells').textContent = `6개소`;
-
-    document.getElementById('analysisSummaryText').innerHTML =
-        `<b>${startName}</b> → <b>${endName}</b> 구간 안심 도보 경로 연산이 완료되었습니다.`;
-
-    renderSafetyMarkers();
-}
-
-    // 출발/목적지 마커 생성
-    const startMarker = new kakao.maps.Marker({ position: startLatLng, map: map });
-    const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
-    markers.push(startMarker, endMarker);
-
-    // 건물을 뚫지 않고 도로를 따라 꺾이도록 중간 경유 좌표들 구성
-    const startLat = startLatLng.getLat();
-    const startLng = startLatLng.getLng();
-    const endLat = endLatLng.getLat();
-    const endLng = endLatLng.getLng();
-
-    // 도로 격자 형태에 맞춰 꺾어지는 경로 지점 생성 (직각 꺾임 도보 경로)
-    const path = [
-        startLatLng,
-        new kakao.maps.LatLng(startLat, (startLng + endLng) / 2),
-        new kakao.maps.LatLng(endLat, (startLng + endLng) / 2),
-        endLatLng
-    ];
-
-    polyline = new kakao.maps.Polyline({
-        path: path,
-        strokeWeight: 5,
-        strokeColor: '#4ECCA3',
-        strokeOpacity: 0.9,
-        strokeStyle: 'solid'
-    });
-    polyline.setMap(map);
-
-    map.setBounds(bounds);
-
-    // 거리 및 소요시간 계산
-    const distMeters = Math.round(polyline.getLength()) || 1250;
-    const walkMinutes = Math.round(distMeters / 75) || 17;
-
-    document.getElementById('metricScore').textContent = "88";
-    document.getElementById('metricTime').textContent = `${walkMinutes}분`;
-    document.getElementById('metricDist').textContent = `(${distMeters}m)`;
-    document.getElementById('metricLights').textContent = `42개 / km²`;
-    document.getElementById('metricBells').textContent = `6개소`;
-
-    document.getElementById('analysisSummaryText').innerHTML =
-        `<b>${startName}</b> → <b>${endName}</b> 구간 안심 도보 경로 연산이 완료되었습니다.`;
-
-    renderSafetyMarkers();
-}
+            if (ps) {
+                try {
+                    ps.keywordSearch(startKeyword, (startData, startStatus) => {
+                        if (startStatus === kakao.maps.services.Status.OK) {
+                            ps.keywordSearch(endKeyword, (endData, endStatus) => {
+                                if (endStatus === kakao.maps.services.Status.OK) {
+                                    const sCoord = new kakao.maps.LatLng(startData[0].y, startData[0].x);
+                                    const eCoord = new kakao.maps.LatLng(endData[0].y, endData[0].x);
+                                    drawRouteAndMetrics(sCoord, eCoord, startData[0].place_name, endData[0].place_name);
                                     return;
                                 } else {
                                     fallbackLocalSearch(startKeyword, endKeyword);
@@ -635,7 +515,6 @@
             fallbackLocalSearch(startKeyword, endKeyword);
         }
 
-        // file:// 차단 환경 오프라인 좌표 처리
         function fallbackLocalSearch(startKeyword, endKeyword) {
             const startObj = LOCAL_LOCATION_MAP[startKeyword] || { lat: 37.5501, lng: 127.1582, name: startKeyword };
             const endObj = LOCAL_LOCATION_MAP[endKeyword] || { lat: 37.5514, lng: 127.1439, name: endKeyword };
@@ -655,15 +534,22 @@
             const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
             markers.push(startMarker, endMarker);
 
+            const startLat = startLatLng.getLat();
+            const startLng = startLatLng.getLng();
+            const endLat = endLatLng.getLat();
+            const endLng = endLatLng.getLng();
+
+            // 도로 격자 직각 꺾임 경로 생성
             const path = [
                 startLatLng,
-                new kakao.maps.LatLng((startLatLng.getLat() + endLatLng.getLat()) / 2 + 0.0015, (startLatLng.getLng() + endLatLng.getLng()) / 2),
+                new kakao.maps.LatLng(startLat, (startLng + endLng) / 2),
+                new kakao.maps.LatLng(endLat, (startLng + endLng) / 2),
                 endLatLng
             ];
 
             polyline = new kakao.maps.Polyline({
                 path: path,
-                strokeWeight: 6,
+                strokeWeight: 5,
                 strokeColor: '#4ECCA3',
                 strokeOpacity: 0.9,
                 strokeStyle: 'solid'
@@ -672,8 +558,8 @@
 
             map.setBounds(bounds);
 
-            const distMeters = Math.round(polyline.getLength()) || 1200;
-            const walkMinutes = Math.round(distMeters / 75) || 16;
+            const distMeters = Math.round(polyline.getLength()) || 1250;
+            const walkMinutes = Math.round(distMeters / 75) || 17;
 
             document.getElementById('metricScore').textContent = "88";
             document.getElementById('metricTime').textContent = `${walkMinutes}분`;
@@ -682,7 +568,7 @@
             document.getElementById('metricBells').textContent = `6개소`;
 
             document.getElementById('analysisSummaryText').innerHTML =
-                `<b>${startName}</b> → <b>${endName}</b> 안심 도보 경로 연산이 완료되었습니다.`;
+                `<b>${startName}</b> → <b>${endName}</b> 구간 안심 도보 경로 연산이 완료되었습니다.`;
 
             renderSafetyMarkers();
         }
