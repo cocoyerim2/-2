@@ -186,8 +186,8 @@
                             <i class="fa-solid fa-person-walking text-mint"></i> 소요시간 / 거리
                         </span>
                         <div class="mt-1">
-                            <span id="metricTime" class="text-lg font-bold text-white">12분</span>
-                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(850m)</span>
+                            <span id="metricTime" class="text-lg font-bold text-white">17분</span>
+                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(1250m)</span>
                         </div>
                     </div>
 
@@ -356,7 +356,6 @@
 
     <!-- JavaScript Application Logic -->
     <script>
-        // 주요 명칭 오프라인 좌표 매핑 (file:// 환경 CORS 블록 대응)
         const LOCAL_LOCATION_MAP = {
             '한영외고': { lat: 37.5501, lng: 127.1582, name: '한영외국어고등학교' },
             '한영외국어고등학교': { lat: 37.5501, lng: 127.1582, name: '한영외국어고등학교' },
@@ -476,7 +475,6 @@
             });
         }
 
-        // 장소 검색 (온라인 Places API 시도 후 CORS 발생 시 로컬 좌표 맵으로 오프라인 자동 처리)
         function searchAndRenderRoute() {
             hideError();
             clearMapOverlays();
@@ -489,7 +487,6 @@
                 return;
             }
 
-            // 1. 온라인 카카오 검색 시도
             if (ps) {
                 try {
                     ps.keywordSearch(startKeyword, (startData, startStatus) => {
@@ -518,7 +515,6 @@
             fallbackLocalSearch(startKeyword, endKeyword);
         }
 
-        // file:// 차단 환경 오프라인 좌표 처리
         function fallbackLocalSearch(startKeyword, endKeyword) {
             const startObj = LOCAL_LOCATION_MAP[startKeyword] || { lat: 37.5501, lng: 127.1582, name: startKeyword };
             const endObj = LOCAL_LOCATION_MAP[endKeyword] || { lat: 37.5514, lng: 127.1439, name: endKeyword };
@@ -538,15 +534,22 @@
             const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
             markers.push(startMarker, endMarker);
 
+            const startLat = startLatLng.getLat();
+            const startLng = startLatLng.getLng();
+            const endLat = endLatLng.getLat();
+            const endLng = endLatLng.getLng();
+
+            // 도로 격자 직각 꺾임 도보 경로 생성 (건물 관통 차단)
             const path = [
                 startLatLng,
-                new kakao.maps.LatLng((startLatLng.getLat() + endLatLng.getLat()) / 2 + 0.0015, (startLatLng.getLng() + endLatLng.getLng()) / 2),
+                new kakao.maps.LatLng(startLat, (startLng + endLng) / 2),
+                new kakao.maps.LatLng(endLat, (startLng + endLng) / 2),
                 endLatLng
             ];
 
             polyline = new kakao.maps.Polyline({
                 path: path,
-                strokeWeight: 6,
+                strokeWeight: 5,
                 strokeColor: '#4ECCA3',
                 strokeOpacity: 0.9,
                 strokeStyle: 'solid'
@@ -555,8 +558,8 @@
 
             map.setBounds(bounds);
 
-            const distMeters = Math.round(polyline.getLength()) || 1200;
-            const walkMinutes = Math.round(distMeters / 75) || 16;
+            const distMeters = Math.round(polyline.getLength()) || 1250;
+            const walkMinutes = Math.round(distMeters / 75) || 17;
 
             document.getElementById('metricScore').textContent = "88";
             document.getElementById('metricTime').textContent = `${walkMinutes}분`;
@@ -565,7 +568,7 @@
             document.getElementById('metricBells').textContent = `6개소`;
 
             document.getElementById('analysisSummaryText').innerHTML =
-                `<b>${startName}</b> → <b>${endName}</b> 안심 도보 경로 연산이 완료되었습니다.`;
+                `<b>${startName}</b> → <b>${endName}</b> 구간 안심 도보 경로 연산이 완료되었습니다.`;
 
             renderSafetyMarkers();
         }
@@ -575,8 +578,11 @@
             bellListContainer.innerHTML = '';
 
             MOCK_SAFETY_DATA.forEach(item => {
+                if (typeof item.lat !== 'number' || typeof item.lng !== 'number' || isNaN(item.lat) || isNaN(item.lng)) return;
+
                 const pos = new kakao.maps.LatLng(item.lat, item.lng);
 
+                // 1. 보안등 (노란색 원)
                 if (item.category === 'light' && isShowLights) {
                     const circle = new kakao.maps.Circle({
                         center: pos,
@@ -591,9 +597,19 @@
                     markers.push(circle);
                 }
 
+                // 2. 비상벨 (범례와 동일하게 초록/민트색 원으로 표시)
                 if (item.category === 'bell' && isShowBells) {
-                    const bellMarker = new kakao.maps.Marker({ position: pos, map: map });
-                    markers.push(bellMarker);
+                    const bellCircle = new kakao.maps.Circle({
+                        center: pos,
+                        radius: 14,
+                        strokeWeight: 2,
+                        strokeColor: '#17362B',
+                        strokeOpacity: 0.9,
+                        fillColor: '#4ECCA3',
+                        fillOpacity: 0.85
+                    });
+                    bellCircle.setMap(map);
+                    markers.push(bellCircle);
 
                     const listItem = document.createElement('div');
                     listItem.className = 'bg-choco-surface p-2 rounded-lg border border-choco-border text-xs flex justify-between items-center hover:border-mint transition-colors cursor-pointer';
