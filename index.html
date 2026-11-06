@@ -364,18 +364,18 @@
             '강남역': { lat: 37.4979, lng: 127.0276, name: '강남역' },
             '역삼동': { lat: 37.5005, lng: 127.0312, name: '역삼동' },
             '역삼역': { lat: 37.5006, lng: 127.0364, name: '역삼역' },
-            '역삼2동 주민센터': { lat: 37.4962, lng: 127.0468, name: '역삼2동 주민센터' }
+            '강남한양수자인': { lat: 37.4745, lng: 127.1005, name: '강남한양수자인' },
+            '장지역': { lat: 37.4784, lng: 127.1264, name: '장지역(8호선)' }
         };
 
         const MOCK_SAFETY_DATA = [
             { id: 1, name: '고덕로 62길 안심벨', type: '가로등 일체형', lat: 37.5510, lng: 127.1550, category: 'bell' },
             { id: 2, name: '한영외고 후문 비상벨', type: 'CCTV 연동형', lat: 37.5495, lng: 127.1570, category: 'bell' },
             { id: 3, name: '명일초 인근 안심벨', type: '음성인식 비상벨', lat: 37.5525, lng: 127.1460, category: 'bell' },
-            { id: 4, name: '강남대로 64길 안심벨', type: '가로등 일체형', lat: 37.4990, lng: 127.0290, category: 'bell' },
+            { id: 4, name: '송파대로 안심벨', type: '가로등 일체형', lat: 37.4770, lng: 127.1200, category: 'bell' },
             { id: 101, lat: 37.5505, lng: 127.1560, category: 'light' },
             { id: 102, lat: 37.5512, lng: 127.1510, category: 'light' },
-            { id: 103, lat: 37.5518, lng: 127.1480, category: 'light' },
-            { id: 104, lat: 37.4985, lng: 127.0285, category: 'light' }
+            { id: 103, lat: 37.4760, lng: 127.1100, category: 'light' }
         ];
 
         let map = null;
@@ -534,15 +534,30 @@
             const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
             markers.push(startMarker, endMarker);
 
-            // 동남로 -> 고덕로(고덕역) -> 양재대로(명일역) 도로 중심선 우회 좌표
+            const sLat = startLatLng.getLat();
+            const sLng = startLatLng.getLng();
+            const eLat = endLatLng.getLat();
+            const eLng = endLatLng.getLng();
+
+            // 검색된 실제 두 좌표 기반 자동 격자 도로 우회 경로 계산
             const path = [
                 startLatLng,
-                new kakao.maps.LatLng(37.5501, 127.1565), // 동남로 대로변 진입점
-                new kakao.maps.LatLng(37.5550, 127.1556), // 고덕역 교차로 (도로 중앙)
-                new kakao.maps.LatLng(37.5514, 127.1556), // 고덕로 대로변 라인
-                new kakao.maps.LatLng(37.5514, 127.1439), // 명일역 3번출구 도로변 접점
+                new kakao.maps.LatLng(sLat, eLng), // 출발지 위도 + 목적지 경도 꺾임점
                 endLatLng
             ];
+
+            // 한영외고 -> 명일역 특수 예외 처리 (도로망 인도 밀착)
+            if (startName.includes('한영') && endName.includes('명일')) {
+                path.length = 0;
+                path.push(
+                    startLatLng,
+                    new kakao.maps.LatLng(37.5501, 127.1565),
+                    new kakao.maps.LatLng(37.5550, 127.1556),
+                    new kakao.maps.LatLng(37.5514, 127.1556),
+                    new kakao.maps.LatLng(37.5514, 127.1439),
+                    endLatLng
+                );
+            }
 
             polyline = new kakao.maps.Polyline({
                 path: path,
@@ -594,7 +609,7 @@
                     markers.push(circle);
                 }
 
-                // 2. 비상벨 (범례와 동일하게 초록/민트색 원으로 표시)
+                // 2. 비상벨 (초록/민트색 원)
                 if (item.category === 'bell' && isShowBells) {
                     const bellCircle = new kakao.maps.Circle({
                         center: pos,
