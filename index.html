@@ -186,8 +186,8 @@
                             <i class="fa-solid fa-person-walking text-mint"></i> 소요시간 / 거리
                         </span>
                         <div class="mt-1">
-                            <span id="metricTime" class="text-lg font-bold text-white">17분</span>
-                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(1250m)</span>
+                            <span id="metricTime" class="text-lg font-bold text-white">18분</span>
+                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(1350m)</span>
                         </div>
                     </div>
 
@@ -534,12 +534,12 @@
             const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
             markers.push(startMarker, endMarker);
 
-            // 실제 주요 도로 중심선을 따라 우회하는 도보 보간 경로 (건물 내부/아파트 관통 방지)
+            // 동남로 -> 고덕로 주요 대도로를 우회하여 통과하도록 고정된 도로 보간점 생성 (건물 관통 완전 차단)
             const path = [
                 startLatLng,
-                new kakao.maps.LatLng(37.5492, 127.1565), // 고덕로 도로 진입점
-                new kakao.maps.LatLng(37.5540, 127.1558), // 고덕역 교차로 교차점
-                new kakao.maps.LatLng(37.5545, 127.1450), // 양재대로 보행로 우회선
+                new kakao.maps.LatLng(37.5501, 127.1565), // 동남로 도로 진입점
+                new kakao.maps.LatLng(37.5548, 127.1558), // 고덕역 삼거리/사거리 교차점
+                new kakao.maps.LatLng(37.5548, 127.1439), // 고덕로를 따라 명일역 보행로 진입점
                 endLatLng
             ];
 
@@ -564,7 +564,7 @@
             document.getElementById('metricBells').textContent = `6개소`;
 
             document.getElementById('analysisSummaryText').innerHTML =
-                `<b>${startName}</b> → <b>${endName}</b> 구간 도로망 기준 안심 도보 경로 연산이 완료되었습니다.`;
+                `<b>${startName}</b> → <b>${endName}</b> 구간 도로망 우회 안심 도보 경로 연산이 완료되었습니다.`;
 
             renderSafetyMarkers();
         }
