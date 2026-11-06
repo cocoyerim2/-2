@@ -534,12 +534,13 @@
             const endMarker = new kakao.maps.Marker({ position: endLatLng, map: map });
             markers.push(startMarker, endMarker);
 
-            // 동남로 -> 고덕로 주요 대도로를 우회하여 통과하도록 고정된 도로 보간점 생성 (건물 관통 완전 차단)
+            // 동남로 -> 고덕로(고덕역) -> 양재대로(명일역) 도로 중심선 우회 좌표
             const path = [
                 startLatLng,
-                new kakao.maps.LatLng(37.5501, 127.1565), // 동남로 도로 진입점
-                new kakao.maps.LatLng(37.5548, 127.1558), // 고덕역 삼거리/사거리 교차점
-                new kakao.maps.LatLng(37.5548, 127.1439), // 고덕로를 따라 명일역 보행로 진입점
+                new kakao.maps.LatLng(37.5501, 127.1565), // 동남로 대로변 진입점
+                new kakao.maps.LatLng(37.5550, 127.1556), // 고덕역 교차로 (도로 중앙)
+                new kakao.maps.LatLng(37.5514, 127.1556), // 고덕로 대로변 라인
+                new kakao.maps.LatLng(37.5514, 127.1439), // 명일역 3번출구 도로변 접점
                 endLatLng
             ];
 
