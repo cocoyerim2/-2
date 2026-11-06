@@ -382,6 +382,8 @@
         let ps = null;
         let markers = [];
         let polyline = null;
+        let currentRouteCoordinates = [];
+        const ROUTE_NEARBY_RADIUS_METERS = 350;
         let isShowLights = true;
         let isShowBells = true;
 
@@ -556,6 +558,7 @@
                 if (coordinates.length < 2) throw new Error('경로 좌표를 읽을 수 없습니다.');
 
                 clearMapOverlays();
+                currentRouteCoordinates = coordinates;
                 const path = coordinates.map(p => new kakao.maps.LatLng(p.lat, p.lon));
                 const bounds = new kakao.maps.LatLngBounds();
                 path.forEach(p => bounds.extend(p));
@@ -616,40 +619,45 @@
             return points;
         }
 
+        // 현재 검색된 보행 경로에서 350m 이내의 안전시설만 지도와 목록에 표시
         function renderSafetyMarkers() {
             const bellListContainer = document.getElementById('bellListContainer');
+            const bellCountBadge = document.getElementById('bellCountBadge');
             bellListContainer.innerHTML = '';
 
-            MOCK_SAFETY_DATA.forEach(item => {
-                if (typeof item.lat !== 'number' || typeof item.lng !== 'number' || isNaN(item.lat) || isNaN(item.lng)) return;
+            if (!currentRouteCoordinates || currentRouteCoordinates.length < 2) {
+                bellCountBadge.textContent = '경로 검색 후 주변 시설 표시';
+                return;
+            }
 
+            const nearbyItems = MOCK_SAFETY_DATA
+                .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number' && Number.isFinite(item.lat) && Number.isFinite(item.lng))
+                .map(item => {
+                    const nearest = getDistanceFromRoute(item.lat, item.lng, currentRouteCoordinates);
+                    return { ...item, routeDistance: nearest.distance, routeProgress: nearest.progress };
+                })
+                .filter(item => item.routeDistance <= ROUTE_NEARBY_RADIUS_METERS)
+                .sort((a, b) => a.routeProgress - b.routeProgress);
+
+            const nearbyBells = nearbyItems.filter(item => item.category === 'bell');
+            bellCountBadge.textContent = '경로 반경 350m · 비상벨 ' + nearbyBells.length + '개';
+
+            nearbyItems.forEach(item => {
                 const pos = new kakao.maps.LatLng(item.lat, item.lng);
-
-                // 1. 보안등 (노란색 원)
                 if (item.category === 'light' && isShowLights) {
                     const circle = new kakao.maps.Circle({
-                        center: pos,
-                        radius: 12,
-                        strokeWeight: 1,
-                        strokeColor: '#121614',
-                        strokeOpacity: 0.8,
-                        fillColor: '#E9C46A',
-                        fillOpacity: 0.7
+                        center: pos, radius: 12, strokeWeight: 1,
+                        strokeColor: '#121614', strokeOpacity: 0.8,
+                        fillColor: '#E9C46A', fillOpacity: 0.7
                     });
                     circle.setMap(map);
                     markers.push(circle);
                 }
-
-                // 2. 비상벨 (초록/민트색 원)
                 if (item.category === 'bell' && isShowBells) {
                     const bellCircle = new kakao.maps.Circle({
-                        center: pos,
-                        radius: 14,
-                        strokeWeight: 2,
-                        strokeColor: '#17362B',
-                        strokeOpacity: 0.9,
-                        fillColor: '#4ECCA3',
-                        fillOpacity: 0.85
+                        center: pos, radius: 14, strokeWeight: 2,
+                        strokeColor: '#17362B', strokeOpacity: 0.9,
+                        fillColor: '#4ECCA3', fillOpacity: 0.85
                     });
                     bellCircle.setMap(map);
                     markers.push(bellCircle);
@@ -657,24 +665,52 @@
                     const listItem = document.createElement('div');
                     listItem.className = 'bg-choco-surface p-2 rounded-lg border border-choco-border text-xs flex justify-between items-center hover:border-mint transition-colors cursor-pointer';
                     listItem.innerHTML = `
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
                             <i class="fa-solid fa-bell text-mint text-xs"></i>
-                            <div>
-                                <p class="font-bold text-choco-text text-[11px]">${item.name || '안전 비상벨'}</p>
-                                <p class="text-[10px] text-choco-muted">${item.type || '표준형'}</p>
+                            <div class="min-w-0">
+                                <p class="font-bold text-choco-text text-[11px] truncate">${escapeHtml(item.name || '안전 비상벨')}</p>
+                                <p class="text-[10px] text-choco-muted">${escapeHtml(item.type || '표준형')} · 경로에서 ${Math.round(item.routeDistance)}m</p>
                             </div>
                         </div>
-                        <button class="text-[10px] font-medium text-mint bg-choco-base border border-choco-border px-2 py-0.5 rounded">위치</button>
+                        <button type="button" class="text-[10px] font-medium text-mint bg-choco-base border border-choco-border px-2 py-0.5 rounded shrink-0">위치</button>
                     `;
-                    listItem.addEventListener('click', () => {
-                        map.setCenter(pos);
-                        map.setLevel(2);
-                    });
+                    listItem.addEventListener('click', () => { map.panTo(pos); map.setLevel(2); });
                     bellListContainer.appendChild(listItem);
                 }
             });
+
+            if (nearbyBells.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'text-[11px] text-choco-muted p-3 text-center';
+                empty.textContent = '검색한 경로 반경 350m 안에 등록된 비상벨 정보가 없습니다.';
+                bellListContainer.appendChild(empty);
+            }
         }
 
+        // 점과 경로 선분 사이의 최소거리(미터) 및 경로상 진행 위치 계산
+        function getDistanceFromRoute(lat, lng, routePoints) {
+            const metersPerLat = 111320;
+            const metersPerLng = 111320 * Math.cos(lat * Math.PI / 180);
+            let minDistance = Infinity;
+            let progress = 0;
+            for (let i = 0; i < routePoints.length - 1; i++) {
+                const a = routePoints[i], b = routePoints[i + 1];
+                const ax = (a.lon - lng) * metersPerLng, ay = (a.lat - lat) * metersPerLat;
+                const bx = (b.lon - lng) * metersPerLng, by = (b.lat - lat) * metersPerLat;
+                const dx = bx - ax, dy = by - ay;
+                const len2 = dx * dx + dy * dy;
+                const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2));
+                const distance = Math.hypot(ax + t * dx, ay + t * dy);
+                if (distance < minDistance) { minDistance = distance; progress = i + t; }
+            }
+            return { distance: minDistance, progress };
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>\"']/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;'
+            })[character]);
+        }
         function clearMapOverlays() {
             markers.forEach(m => {
                 if (m.setMap) m.setMap(null);
