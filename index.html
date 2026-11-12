@@ -38,7 +38,8 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>\n    <script>proj4.defs("EPSG:5174", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-146.43,507.89,681.46,0,0,0,0");</script>\n    <!-- Kakao Map SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <script>proj4.defs("EPSG:5174", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-146.43,507.89,681.46,0,0,0,0");</script>\n    <!-- Kakao Map SDK -->
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=3275b5daebd17606c45684a2185bbd03&libraries=services&autoload=false"></script>
 
     <style>
@@ -115,7 +116,7 @@
                 <span class="flex items-center gap-1.5 font-medium">
                     <i class="fa-solid fa-database text-mint"></i> 행정안전부 (data.go.kr)
                 </span>
-                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">보안등 · 비상벨 연동</span>
+                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">시설 데이터 연결 확인 중</span>
             </div>
         </header>
 
@@ -166,7 +167,7 @@
                     <span class="text-xs font-bold text-white flex items-center gap-1.5">
                         <i class="fa-solid fa-chart-simple text-mint"></i> 실시간 안심 지표
                     </span>
-                    <span id="routeStatusBadge" class="text-[10px] px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint/20 font-semibold">탐색 완료</span>
+                    <span id="routeStatusBadge" class="text-[10px] px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint/20 font-semibold">경로 탐색 전</span>
                 </div>
 
                 <!-- Grid Stats -->
@@ -176,7 +177,7 @@
                             <i class="fa-solid fa-shield text-mint"></i> 안심 점수
                         </span>
                         <div class="mt-1 flex items-baseline gap-1">
-                            <span id="metricScore" class="text-2xl font-black text-mint">88</span>
+                            <span id="metricScore" class="text-2xl font-black text-mint">—</span>
                             <span class="text-xs text-choco-muted">/ 100점</span>
                         </div>
                     </div>
@@ -186,8 +187,8 @@
                             <i class="fa-solid fa-person-walking text-mint"></i> 소요시간 / 거리
                         </span>
                         <div class="mt-1">
-                            <span id="metricTime" class="text-lg font-bold text-white">18분</span>
-                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(1350m)</span>
+                            <span id="metricTime" class="text-lg font-bold text-white">—</span>
+                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(경로 탐색 전)</span>
                         </div>
                     </div>
 
@@ -195,16 +196,16 @@
                         <span class="text-[11px] text-choco-muted flex items-center gap-1">
                             <i class="fa-solid fa-lightbulb text-warning"></i> 보안등 밀도
                         </span>
-                        <p id="metricLights" class="text-sm font-bold text-choco-text mt-1">42개 / km²</p>
-                        <p class="text-[10px] text-choco-muted mt-0.5">조명 커버리지 91%</p>
+                        <p id="metricLights" class="text-sm font-bold text-choco-text mt-1">데이터 없음</p>
+                        <p class="text-[10px] text-choco-muted mt-0.5">실제 보안등 데이터 미연동</p>
                     </div>
 
                     <div class="bg-choco-surface p-3 rounded-lg border border-choco-border">
                         <span class="text-[11px] text-choco-muted flex items-center gap-1">
                             <i class="fa-solid fa-bell text-mint"></i> 경로 상 비상벨
                         </span>
-                        <p id="metricBells" class="text-sm font-bold text-choco-text mt-1">6개소</p>
-                        <p class="text-[10px] text-choco-muted mt-0.5">평균 간격 140m</p>
+                        <p id="metricBells" class="text-sm font-bold text-choco-text mt-1">데이터 없음</p>
+                        <p class="text-[10px] text-choco-muted mt-0.5">실제 비상벨 데이터 미연동</p>
                     </div>
                 </div>
 
