@@ -117,7 +117,7 @@
                 <span class="flex items-center gap-1.5 font-medium">
                     <i class="fa-solid fa-database text-mint"></i> 행정안전부 (data.go.kr)
                 </span>
-                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">시설 데이터 연결 확인 중</span>
+                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">비상벨 데이터 연결 상태 확인 중</span>
             </div>
         </header>
 
@@ -616,7 +616,7 @@
         }
 
         // GitHub Actions가 인증키를 서버 측에서 사용해 생성한 공개 JSON만 읽습니다.
-        async function loadSafetyData() {
+        async async function loadSafetyData() {
             try {
                 const response = await fetch('./data/emergency-bells.json', { cache: 'no-store' });
                 if (!response.ok) throw new Error('시설 데이터 파일을 아직 생성하지 않았습니다.');
@@ -657,7 +657,7 @@
                 if (currentRouteCoordinates.length > 1) renderSafetyMarkers();
             } catch (error) {
                 document.getElementById('bellCountBadge').textContent = '비상벨 데이터 준비 중';
-                showError('공공데이터 연동 안내', '비상벨 데이터가 아직 생성되지 않았습니다. GitHub 저장소의 DATA_GO_KR_SERVICE_KEY 비밀값을 등록한 뒤 Actions에서 Refresh public safety facilities를 실행해주세요.');
+                showError('비상벨 데이터 연결 실패', '실제 비상벨 자료를 불러오지 못했습니다. GitHub Actions 수집 기록과 공공데이터포털 API 응답을 확인해야 합니다. 임의의 시설 위치는 표시하지 않습니다.');
             }
         }
 
