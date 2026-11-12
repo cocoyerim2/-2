@@ -38,7 +38,8 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>\n    <script>proj4.defs("EPSG:5174", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-146.43,507.89,681.46,0,0,0,0");</script>\n    <!-- Kakao Map SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <script>proj4.defs("EPSG:5174", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-146.43,507.89,681.46,0,0,0,0");</script>\n    <!-- Kakao Map SDK -->
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=3275b5daebd17606c45684a2185bbd03&libraries=services&autoload=false"></script>
 
     <style>
@@ -614,7 +615,7 @@
         }
 
         // GitHub Actions가 인증키를 서버 측에서 사용해 생성한 공개 JSON만 읽습니다.
-        async async function loadSafetyData() {
+        async function loadSafetyData() {
             try {
                 const response = await fetch('./data/emergency-bells.json', { cache: 'no-store' });
                 if (!response.ok) throw new Error('시설 데이터 파일을 아직 생성하지 않았습니다.');
@@ -624,7 +625,7 @@
                     if (Array.isArray(value)) { value.forEach(walk); return; }
                     if (!value || typeof value !== 'object') return;
                     const keys = Object.keys(value).map(k => k.toUpperCase());
-                    if (keys.some(k => ['LAT','LATITUDE','LOT','LON','LONGITUDE','LNG'].includes(k))) rows.push(value);
+                    if (keys.some(k => ['LAT','LATITUDE','위도','LOT','LON','LONGITUDE','LNG','경도'].includes(k))) rows.push(value);
                     Object.values(value).forEach(v => { if (v && typeof v === 'object') walk(v); });
                 };
                 walk(payload.pages || payload);
@@ -636,11 +637,11 @@
                     return null;
                 };
                 SAFETY_DATA = rows.map((row, index) => {
-                    let lat = Number(pick(row, ['LAT','LATITUDE','Y']));
-                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','X']));
-                    // 비상벨 API의 좌표가 EPSG:5174 투영좌표로 내려오는 경우 WGS84로 변환
+                    let lat = Number(pick(row, ['LAT','LATITUDE','위도','Y']));
+                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','경도','X']));
+                    // EPSG:5174는 [동쪽 X, 북쪽 Y] 순서로 WGS84 위경도로 변환
                     if ((Math.abs(lat) > 90 || Math.abs(lng) > 180) && window.proj4) {
-                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lat, lng]);
+                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lng, lat]);
                         lng = converted[0]; lat = converted[1];
                     }
                     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
