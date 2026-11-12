@@ -616,7 +616,7 @@
         }
 
         // GitHub Actions가 인증키를 서버 측에서 사용해 생성한 공개 JSON만 읽습니다.
-        async async function loadSafetyData() {
+        async function loadSafetyData() {
             try {
                 const response = await fetch('./data/emergency-bells.json', { cache: 'no-store' });
                 if (!response.ok) throw new Error('시설 데이터 파일을 아직 생성하지 않았습니다.');
