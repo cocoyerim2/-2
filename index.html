@@ -38,7 +38,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Kakao Map SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>\n    <script>proj4.defs("EPSG:5174", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-146.43,507.89,681.46,0,0,0,0");</script>\n    <!-- Kakao Map SDK -->
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=3275b5daebd17606c45684a2185bbd03&libraries=services&autoload=false"></script>
 
     <style>
@@ -368,15 +368,8 @@
             '장지역': { lat: 37.4784, lng: 127.1264, name: '장지역(8호선)' }
         };
 
-        const MOCK_SAFETY_DATA = [
-            { id: 1, name: '고덕로 62길 안심벨', type: '가로등 일체형', lat: 37.5510, lng: 127.1550, category: 'bell' },
-            { id: 2, name: '한영외고 후문 비상벨', type: 'CCTV 연동형', lat: 37.5495, lng: 127.1570, category: 'bell' },
-            { id: 3, name: '명일초 인근 안심벨', type: '음성인식 비상벨', lat: 37.5525, lng: 127.1460, category: 'bell' },
-            { id: 4, name: '송파대로 안심벨', type: '가로등 일체형', lat: 37.4770, lng: 127.1200, category: 'bell' },
-            { id: 101, lat: 37.5505, lng: 127.1560, category: 'light' },
-            { id: 102, lat: 37.5512, lng: 127.1510, category: 'light' },
-            { id: 103, lat: 37.4760, lng: 127.1100, category: 'light' }
-        ];
+        let SAFETY_DATA = [];
+
 
         let map = null;
         let ps = null;
@@ -392,8 +385,9 @@
         let isSirenPlaying = false;
 
         window.addEventListener('DOMContentLoaded', () => {
-            initKakaoMapSDK();
             setupEventListeners();
+            loadSafetyData();
+            initKakaoMapSDK();
         });
 
         function initKakaoMapSDK() {
@@ -619,6 +613,52 @@
             return points;
         }
 
+        // GitHub Actions가 인증키를 서버 측에서 사용해 생성한 공개 JSON만 읽습니다.
+        async function loadSafetyData() {
+            try {
+                const response = await fetch('./data/emergency-bells.json', { cache: 'no-store' });
+                if (!response.ok) throw new Error('시설 데이터 파일을 아직 생성하지 않았습니다.');
+                const payload = await response.json();
+                const rows = [];
+                const walk = value => {
+                    if (Array.isArray(value)) { value.forEach(walk); return; }
+                    if (!value || typeof value !== 'object') return;
+                    const keys = Object.keys(value).map(k => k.toUpperCase());
+                    if (keys.some(k => ['LAT','LATITUDE','LOT','LON','LONGITUDE','LNG'].includes(k))) rows.push(value);
+                    Object.values(value).forEach(v => { if (v && typeof v === 'object') walk(v); });
+                };
+                walk(payload.pages || payload);
+                const pick = (obj, names) => {
+                    for (const name of names) {
+                        const key = Object.keys(obj).find(k => k.toUpperCase() === name);
+                        if (key && obj[key] !== null && obj[key] !== '') return obj[key];
+                    }
+                    return null;
+                };
+                SAFETY_DATA = rows.map((row, index) => {
+                    let lat = Number(pick(row, ['LAT','LATITUDE','Y']));
+                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','X']));
+                    // 비상벨 API의 좌표가 EPSG:5174 투영좌표로 내려오는 경우 WGS84로 변환
+                    if ((Math.abs(lat) > 90 || Math.abs(lng) > 180) && window.proj4) {
+                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lat, lng]);
+                        lng = converted[0]; lat = converted[1];
+                    }
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+                    return {
+                        id: pick(row, ['OBJT_ID','ID','SFTY_EMRGNCBLL_ID']) || 'bell-' + index,
+                        name: pick(row, ['SFTY_EMRGNCBLL_NM','FCLTY_NM','INSTL_PLC_NM','LCTN_ROAD_NM_ADDR','ADRES']) || '안전 비상벨',
+                        type: pick(row, ['INSTL_TYPE','SFTY_EMRGNCBLL_TYPE','INS_TYPE']) || '공공데이터 등록 시설',
+                        lat, lng, category: 'bell'
+                    };
+                }).filter(Boolean);
+                document.getElementById('bellCountBadge').textContent = '공공데이터 비상벨 ' + SAFETY_DATA.length + '개 로드';
+                if (currentRouteCoordinates.length > 1) renderSafetyMarkers();
+            } catch (error) {
+                document.getElementById('bellCountBadge').textContent = '비상벨 데이터 준비 중';
+                showError('공공데이터 연동 안내', '비상벨 데이터가 아직 생성되지 않았습니다. GitHub 저장소의 DATA_GO_KR_SERVICE_KEY 비밀값을 등록한 뒤 Actions에서 Refresh public safety facilities를 실행해주세요.');
+            }
+        }
+
         // 현재 검색된 보행 경로에서 350m 이내의 안전시설만 지도와 목록에 표시
         function renderSafetyMarkers() {
             const bellListContainer = document.getElementById('bellListContainer');
@@ -630,7 +670,7 @@
                 return;
             }
 
-            const nearbyItems = MOCK_SAFETY_DATA
+            const nearbyItems = SAFETY_DATA
                 .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number' && Number.isFinite(item.lat) && Number.isFinite(item.lng))
                 .map(item => {
                     const nearest = getDistanceFromRoute(item.lat, item.lng, currentRouteCoordinates);
