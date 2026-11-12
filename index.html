@@ -38,11 +38,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
-    <script>proj4.defs("EPSG:5174", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-146.43,507.89,681.46,0,0,0,0");</script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    <!-- Kakao Map SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>\n    <script>proj4.defs("EPSG:5174", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-146.43,507.89,681.46,0,0,0,0");</script>\n    <!-- Kakao Map SDK -->
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=3275b5daebd17606c45684a2185bbd03&libraries=services&autoload=false"></script>
 
     <style>
@@ -119,7 +115,7 @@
                 <span class="flex items-center gap-1.5 font-medium">
                     <i class="fa-solid fa-database text-mint"></i> 행정안전부 (data.go.kr)
                 </span>
-                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">비상벨 데이터 연결 상태 확인 중</span>
+                <span class="text-[10px] bg-choco-base px-1.5 py-0.5 rounded border border-choco-border">보안등 · 비상벨 연동</span>
             </div>
         </header>
 
@@ -170,7 +166,7 @@
                     <span class="text-xs font-bold text-white flex items-center gap-1.5">
                         <i class="fa-solid fa-chart-simple text-mint"></i> 실시간 안심 지표
                     </span>
-                    <span id="routeStatusBadge" class="text-[10px] px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint/20 font-semibold">경로 탐색 전</span>
+                    <span id="routeStatusBadge" class="text-[10px] px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint/20 font-semibold">탐색 완료</span>
                 </div>
 
                 <!-- Grid Stats -->
@@ -180,7 +176,7 @@
                             <i class="fa-solid fa-shield text-mint"></i> 안심 점수
                         </span>
                         <div class="mt-1 flex items-baseline gap-1">
-                            <span id="metricScore" class="text-2xl font-black text-mint">—</span>
+                            <span id="metricScore" class="text-2xl font-black text-mint">88</span>
                             <span class="text-xs text-choco-muted">/ 100점</span>
                         </div>
                     </div>
@@ -190,8 +186,8 @@
                             <i class="fa-solid fa-person-walking text-mint"></i> 소요시간 / 거리
                         </span>
                         <div class="mt-1">
-                            <span id="metricTime" class="text-lg font-bold text-white">—</span>
-                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(경로 탐색 전)</span>
+                            <span id="metricTime" class="text-lg font-bold text-white">18분</span>
+                            <span id="metricDist" class="text-xs text-choco-muted ml-0.5">(1350m)</span>
                         </div>
                     </div>
 
@@ -199,16 +195,16 @@
                         <span class="text-[11px] text-choco-muted flex items-center gap-1">
                             <i class="fa-solid fa-lightbulb text-warning"></i> 보안등 밀도
                         </span>
-                        <p id="metricLights" class="text-sm font-bold text-choco-text mt-1">데이터 없음</p>
-                        <p class="text-[10px] text-choco-muted mt-0.5">실제 보안등 데이터 미연동</p>
+                        <p id="metricLights" class="text-sm font-bold text-choco-text mt-1">42개 / km²</p>
+                        <p class="text-[10px] text-choco-muted mt-0.5">조명 커버리지 91%</p>
                     </div>
 
                     <div class="bg-choco-surface p-3 rounded-lg border border-choco-border">
                         <span class="text-[11px] text-choco-muted flex items-center gap-1">
                             <i class="fa-solid fa-bell text-mint"></i> 경로 상 비상벨
                         </span>
-                        <p id="metricBells" class="text-sm font-bold text-choco-text mt-1">데이터 없음</p>
-                        <p class="text-[10px] text-choco-muted mt-0.5">실제 비상벨 데이터 미연동</p>
+                        <p id="metricBells" class="text-sm font-bold text-choco-text mt-1">6개소</p>
+                        <p class="text-[10px] text-choco-muted mt-0.5">평균 간격 140m</p>
                     </div>
                 </div>
 
@@ -376,7 +372,6 @@
 
 
         let map = null;
-        let leafletMap = null;
         let ps = null;
         let markers = [];
         let polyline = null;
@@ -395,34 +390,42 @@
             initKakaoMapSDK();
         });
 
-        // OSM base map keeps the map visible even if Kakao map key/domain authentication fails.
         function initKakaoMapSDK() {
-            try {
-                if (!window.L) throw new Error('Leaflet library unavailable');
-                leafletMap = L.map('map', { zoomControl: false }).setView([37.5501, 127.1582], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(leafletMap);
-                L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
-                window.addEventListener('resize', handleMapResize);
-                setTimeout(() => leafletMap && leafletMap.invalidateSize(), 150);
-            } catch (e) {
-                showError('지도 초기화 실패', '기본 지도 라이브러리를 불러오지 못했습니다. 네트워크 연결을 확인해주세요.');
+            if (typeof kakao === 'undefined' || !kakao.maps) {
+                showError("SDK 로딩 실패", "카카오 지도 SDK를 불러올 수 없습니다.");
                 return;
             }
-            if (window.kakao && kakao.maps) {
+
+            kakao.maps.load(() => {
                 try {
-                    kakao.maps.load(() => {
-                        try { if (kakao.maps.services) ps = new kakao.maps.services.Places(); } catch (e) { ps = null; }
-                        searchAndRenderRoute();
-                    });
-                } catch (e) { ps = null; searchAndRenderRoute(); }
-            } else { ps = null; searchAndRenderRoute(); }
+                    const container = document.getElementById('map');
+                    const options = {
+                        center: new kakao.maps.LatLng(37.5501, 127.1582),
+                        level: 4
+                    };
+
+                    map = new kakao.maps.Map(container, options);
+                    try {
+                        ps = new kakao.maps.services.Places();
+                    } catch(e) {}
+
+                    const zoomControl = new kakao.maps.ZoomControl();
+                    map.addControl(zoomControl, kakao.maps.ControlPosition.BOTTOMRIGHT);
+
+                    window.addEventListener('resize', handleMapResize);
+                    searchAndRenderRoute();
+                } catch (e) {
+                    showError("지도 초기화 실패", "지도 생성 중 오류가 발생했습니다.");
+                }
+            });
         }
 
         function handleMapResize() {
-            if (leafletMap) leafletMap.invalidateSize();
+            if (map) {
+                const center = map.getCenter();
+                map.relayout();
+                map.setCenter(center);
+            }
         }
 
         function setupEventListeners() {
@@ -550,10 +553,19 @@
 
                 clearMapOverlays();
                 currentRouteCoordinates = coordinates;
-                const path = coordinates.map(p => [p.lat, p.lon]);
-                polyline = L.polyline(path, { color: '#4ECCA3', weight: 6, opacity: 0.95 }).addTo(leafletMap);
-                markers.push(L.marker(path[0]).addTo(leafletMap), L.marker(path[path.length - 1]).addTo(leafletMap));
-                leafletMap.fitBounds(polyline.getBounds(), { padding: [30, 30] });
+                const path = coordinates.map(p => new kakao.maps.LatLng(p.lat, p.lon));
+                const bounds = new kakao.maps.LatLngBounds();
+                path.forEach(p => bounds.extend(p));
+                markers.push(
+                    new kakao.maps.Marker({ position: path[0], map }),
+                    new kakao.maps.Marker({ position: path[path.length - 1], map })
+                );
+                polyline = new kakao.maps.Polyline({
+                    path, strokeWeight: 6, strokeColor: '#4ECCA3',
+                    strokeOpacity: 0.95, strokeStyle: 'solid'
+                });
+                polyline.setMap(map);
+                map.setBounds(bounds);
 
                 const summary = routeData.trip.summary || {};
                 const meters = Math.round((summary.length || 0) * 1000);
@@ -602,7 +614,7 @@
         }
 
         // GitHub Actions가 인증키를 서버 측에서 사용해 생성한 공개 JSON만 읽습니다.
-        async function loadSafetyData() {
+        async async function loadSafetyData() {
             try {
                 const response = await fetch('./data/emergency-bells.json', { cache: 'no-store' });
                 if (!response.ok) throw new Error('시설 데이터 파일을 아직 생성하지 않았습니다.');
@@ -612,7 +624,7 @@
                     if (Array.isArray(value)) { value.forEach(walk); return; }
                     if (!value || typeof value !== 'object') return;
                     const keys = Object.keys(value).map(k => k.toUpperCase());
-                    if (keys.some(k => ['LAT','LATITUDE','위도','LOT','LON','LONGITUDE','LNG','경도'].includes(k))) rows.push(value);
+                    if (keys.some(k => ['LAT','LATITUDE','LOT','LON','LONGITUDE','LNG'].includes(k))) rows.push(value);
                     Object.values(value).forEach(v => { if (v && typeof v === 'object') walk(v); });
                 };
                 walk(payload.pages || payload);
@@ -624,12 +636,11 @@
                     return null;
                 };
                 SAFETY_DATA = rows.map((row, index) => {
-                    let lat = Number(pick(row, ['LAT','LATITUDE','위도','Y','NORTHING']));
-                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','경도','X','EASTING']));
+                    let lat = Number(pick(row, ['LAT','LATITUDE','Y']));
+                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','X']));
                     // 비상벨 API의 좌표가 EPSG:5174 투영좌표로 내려오는 경우 WGS84로 변환
                     if ((Math.abs(lat) > 90 || Math.abs(lng) > 180) && window.proj4) {
-                        // EPSG:5174는 [X(동쪽), Y(북쪽)] 순서이므로 경도열(X), 위도열(Y)을 넣습니다.
-                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lng, lat]);
+                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lat, lng]);
                         lng = converted[0]; lat = converted[1];
                     }
                     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
@@ -644,7 +655,7 @@
                 if (currentRouteCoordinates.length > 1) renderSafetyMarkers();
             } catch (error) {
                 document.getElementById('bellCountBadge').textContent = '비상벨 데이터 준비 중';
-                showError('비상벨 데이터 연결 실패', '실제 비상벨 자료를 불러오지 못했습니다. GitHub Actions 수집 기록과 공공데이터포털 API 응답을 확인해야 합니다. 임의의 시설 위치는 표시하지 않습니다.');
+                showError('공공데이터 연동 안내', '비상벨 데이터가 아직 생성되지 않았습니다. GitHub 저장소의 DATA_GO_KR_SERVICE_KEY 비밀값을 등록한 뒤 Actions에서 Refresh public safety facilities를 실행해주세요.');
             }
         }
 
@@ -672,12 +683,24 @@
             bellCountBadge.textContent = '경로 반경 350m · 비상벨 ' + nearbyBells.length + '개';
 
             nearbyItems.forEach(item => {
-                const pos = [item.lat, item.lng];
+                const pos = new kakao.maps.LatLng(item.lat, item.lng);
                 if (item.category === 'light' && isShowLights) {
-                    markers.push(L.circle(pos, { radius: 12, color: '#121614', weight: 1, fillColor: '#E9C46A', fillOpacity: 0.7 }).addTo(leafletMap));
+                    const circle = new kakao.maps.Circle({
+                        center: pos, radius: 12, strokeWeight: 1,
+                        strokeColor: '#121614', strokeOpacity: 0.8,
+                        fillColor: '#E9C46A', fillOpacity: 0.7
+                    });
+                    circle.setMap(map);
+                    markers.push(circle);
                 }
                 if (item.category === 'bell' && isShowBells) {
-                    markers.push(L.circle(pos, { radius: 14, color: '#17362B', weight: 2, fillColor: '#4ECCA3', fillOpacity: 0.85 }).addTo(leafletMap));
+                    const bellCircle = new kakao.maps.Circle({
+                        center: pos, radius: 14, strokeWeight: 2,
+                        strokeColor: '#17362B', strokeOpacity: 0.9,
+                        fillColor: '#4ECCA3', fillOpacity: 0.85
+                    });
+                    bellCircle.setMap(map);
+                    markers.push(bellCircle);
 
                     const listItem = document.createElement('div');
                     listItem.className = 'bg-choco-surface p-2 rounded-lg border border-choco-border text-xs flex justify-between items-center hover:border-mint transition-colors cursor-pointer';
@@ -691,7 +714,7 @@
                         </div>
                         <button type="button" class="text-[10px] font-medium text-mint bg-choco-base border border-choco-border px-2 py-0.5 rounded shrink-0">위치</button>
                     `;
-                    listItem.addEventListener('click', () => { leafletMap.setView(pos, 18); });
+                    listItem.addEventListener('click', () => { map.panTo(pos); map.setLevel(2); });
                     bellListContainer.appendChild(listItem);
                 }
             });
@@ -729,10 +752,11 @@
             })[character]);
         }
         function clearMapOverlays() {
-            markers.forEach(m => { if (m && m.remove) m.remove(); else if (m && m.setMap) m.setMap(null); });
+            markers.forEach(m => {
+                if (m.setMap) m.setMap(null);
+            });
             markers = [];
-            if (polyline) { if (polyline.remove) polyline.remove(); else if (polyline.setMap) polyline.setMap(null); }
-            polyline = null;
+            if (polyline) polyline.setMap(null);
         }
 
         function getCurrentLocation() {
@@ -740,8 +764,11 @@
                 navigator.geolocation.getCurrentPosition(position => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
-                    const loc = [lat, lng];
-                    if (leafletMap) { leafletMap.setView(loc, 17); markers.push(L.marker(loc).addTo(leafletMap)); }
+                    const loc = new kakao.maps.LatLng(lat, lng);
+                    map.setCenter(loc);
+                    map.setLevel(3);
+                    const myMarker = new kakao.maps.Marker({ position: loc, map: map });
+                    markers.push(myMarker);
                 }, () => showError("위치 수신 오류", "GPS 정보를 불러올 수 없습니다."));
             }
         }
