@@ -21,37 +21,61 @@ jobs:
           DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
         run: |
           python - <<'PY'
-          import json, os, urllib.parse, urllib.request, pathlib, sys
-          key = os.environ.get("DATA_GO_KR_SERVICE_KEY", "")
+          import json, os, urllib.parse, urllib.request, urllib.error, pathlib, sys
+          key = os.environ.get("DATA_GO_KR_SERVICE_KEY", "").strip()
           if not key:
               raise SystemExit("Repository secret DATA_GO_KR_SERVICE_KEY is not configured.")
           base = "https://apis.data.go.kr/1741000/emergency_call_box_info"
           pages = []
+          def find_rows(obj):
+              if isinstance(obj, list):
+                  if obj and isinstance(obj[0], dict): return obj
+                  for x in obj:
+                      got = find_rows(x)
+                      if got: return got
+              if isinstance(obj, dict):
+                  for v in obj.values():
+                      got = find_rows(v)
+                      if got: return got
+              return []
+          def find_total(obj):
+              if isinstance(obj, dict):
+                  for k, v in obj.items():
+                      if k.lower() in ("totalcount", "total_count"):
+                          try: return int(v)
+                          except (TypeError, ValueError): pass
+                      got = find_total(v)
+                      if got is not None: return got
+              elif isinstance(obj, list):
+                  for v in obj:
+                      got = find_total(v)
+                      if got is not None: return got
+              return None
           for page in range(1, 501):
               params = urllib.parse.urlencode({
                   "serviceKey": key, "pageNo": page, "numOfRows": 100, "returnType": "json"
               })
-              req = urllib.request.Request(base + "?" + params, headers={"User-Agent": "SafeWay-data-refresh/1.0"})
-              with urllib.request.urlopen(req, timeout=45) as response:
-                  payload = json.loads(response.read().decode("utf-8-sig"))
+              req = urllib.request.Request(base + "?" + params, headers={
+                  "User-Agent": "SafeWay-data-refresh/1.0", "Accept": "application/json"
+              })
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as response:
+                      raw = response.read().decode("utf-8-sig")
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode("utf-8-sig", errors="replace")
+                  print("공공데이터포털 HTTP 오류:", e.code, e.reason)
+                  print("응답 내용:", body[:3000])
+                  raise SystemExit("API request rejected; see sanitized provider response above.")
+              try:
+                  payload = json.loads(raw)
+              except json.JSONDecodeError:
+                  print("API가 JSON이 아닌 응답을 반환했습니다:", raw[:3000])
+                  raise
               pages.append(payload)
-              text = json.dumps(payload, ensure_ascii=False)
-              if '"NO_DATA' in text or '"totalCount":0' in text or '"totalCount": 0' in text:
-                  break
-              # Stop when the response contains fewer than the requested rows.
-              def find_rows(obj):
-                  if isinstance(obj, list):
-                      if obj and isinstance(obj[0], dict): return obj
-                      for x in obj:
-                          got = find_rows(x)
-                          if got: return got
-                  if isinstance(obj, dict):
-                      for v in obj.values():
-                          got = find_rows(v)
-                          if got: return got
-                  return []
               rows = find_rows(payload)
-              if len(rows) < 100: break
+              total = find_total(payload)
+              if not rows or len(rows) < 100 or (total is not None and page * 100 >= total):
+                  break
           out = pathlib.Path("data")
           out.mkdir(exist_ok=True)
           (out / "emergency-bells.json").write_text(json.dumps({
