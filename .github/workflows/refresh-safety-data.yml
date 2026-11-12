@@ -1,0 +1,67 @@
+name: Refresh public safety facilities
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 18 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Fetch emergency bell data without exposing the service key
+        env:
+          DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.parse, urllib.request, pathlib, sys
+          key = os.environ.get("DATA_GO_KR_SERVICE_KEY", "")
+          if not key:
+              raise SystemExit("Repository secret DATA_GO_KR_SERVICE_KEY is not configured.")
+          base = "https://apis.data.go.kr/1741000/emergency_call_box_info"
+          pages = []
+          for page in range(1, 501):
+              params = urllib.parse.urlencode({
+                  "serviceKey": key, "pageNo": page, "numOfRows": 100, "returnType": "json"
+              })
+              req = urllib.request.Request(base + "?" + params, headers={"User-Agent": "SafeWay-data-refresh/1.0"})
+              with urllib.request.urlopen(req, timeout=45) as response:
+                  payload = json.loads(response.read().decode("utf-8-sig"))
+              pages.append(payload)
+              text = json.dumps(payload, ensure_ascii=False)
+              if '"NO_DATA' in text or '"totalCount":0' in text or '"totalCount": 0' in text:
+                  break
+              # Stop when the response contains fewer than the requested rows.
+              def find_rows(obj):
+                  if isinstance(obj, list):
+                      if obj and isinstance(obj[0], dict): return obj
+                      for x in obj:
+                          got = find_rows(x)
+                          if got: return got
+                  if isinstance(obj, dict):
+                      for v in obj.values():
+                          got = find_rows(v)
+                          if got: return got
+                  return []
+              rows = find_rows(payload)
+              if len(rows) < 100: break
+          out = pathlib.Path("data")
+          out.mkdir(exist_ok=True)
+          (out / "emergency-bells.json").write_text(json.dumps({
+              "source": "data.go.kr/15155046", "fetchedAt": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+              "pages": pages
+          }, ensure_ascii=False), encoding="utf-8")
+          PY
+      - name: Commit refreshed public data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/emergency-bells.json
+          git diff --cached --quiet || (git commit -m "Refresh emergency bell data" && git push)
