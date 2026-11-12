@@ -626,7 +626,7 @@
                     if (Array.isArray(value)) { value.forEach(walk); return; }
                     if (!value || typeof value !== 'object') return;
                     const keys = Object.keys(value).map(k => k.toUpperCase());
-                    if (keys.some(k => ['LAT','LATITUDE','LOT','LON','LONGITUDE','LNG'].includes(k))) rows.push(value);
+                    if (keys.some(k => ['LAT','LATITUDE','위도','LOT','LON','LONGITUDE','LNG','경도'].includes(k))) rows.push(value);
                     Object.values(value).forEach(v => { if (v && typeof v === 'object') walk(v); });
                 };
                 walk(payload.pages || payload);
@@ -638,11 +638,12 @@
                     return null;
                 };
                 SAFETY_DATA = rows.map((row, index) => {
-                    let lat = Number(pick(row, ['LAT','LATITUDE','Y']));
-                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','X']));
+                    let lat = Number(pick(row, ['LAT','LATITUDE','위도','Y','NORTHING']));
+                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','경도','X','EASTING']));
                     // 비상벨 API의 좌표가 EPSG:5174 투영좌표로 내려오는 경우 WGS84로 변환
                     if ((Math.abs(lat) > 90 || Math.abs(lng) > 180) && window.proj4) {
-                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lat, lng]);
+                        // EPSG:5174는 [X(동쪽), Y(북쪽)] 순서이므로 경도열(X), 위도열(Y)을 넣습니다.
+                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lng, lat]);
                         lng = converted[0]; lat = converted[1];
                     }
                     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
