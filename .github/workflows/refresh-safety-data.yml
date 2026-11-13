@@ -64,15 +64,29 @@ jobs:
                           "numOfRows": 100,
                           "returnType": "xml"
                       })
-                      url = "http://safemap.go.kr/openapi2/IF_0032?" + params
-                      req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 SafeWay/1.0", "Accept": "application/xml, text/xml, */*"})
-                      try:
-                          with urllib.request.urlopen(req, timeout=60) as res:
-                              raw = res.read().decode("utf-8-sig")
-                      except urllib.error.HTTPError as e:
-                          body = e.read().decode("utf-8-sig", errors="replace")
-                          # Log provider diagnostics only; never log the request URL or key.
-                          raise RuntimeError("SafeMap HTTP " + str(e.code) + ": " + body[:1200])
+                      # Prefer HTTPS and try both official host variants.
+                      raw = None
+                      last_error = None
+                      for base_url in (
+                          "https://www.safemap.go.kr/openapi2/IF_0032",
+                          "https://safemap.go.kr/openapi2/IF_0032",
+                          "http://www.safemap.go.kr/openapi2/IF_0032",
+                          "http://safemap.go.kr/openapi2/IF_0032"
+                      ):
+                          url = base_url + "?" + params
+                          req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 SafeWay/1.0", "Accept": "application/xml, text/xml, */*"})
+                          try:
+                              with urllib.request.urlopen(req, timeout=60) as res:
+                                  raw = res.read().decode("utf-8-sig")
+                              break
+                          except urllib.error.HTTPError as e:
+                              body = e.read().decode("utf-8-sig", errors="replace")
+                              # Never log the request URL or credential.
+                              last_error = "SafeMap HTTP " + str(e.code) + ": " + body[:1200]
+                          except Exception as e:
+                              last_error = type(e).__name__ + ": " + str(e)[:300]
+                      if raw is None:
+                          raise RuntimeError(last_error or "SafeMap API request failed.")
                       try:
                           payload = json.loads(raw)
                       except json.JSONDecodeError:
