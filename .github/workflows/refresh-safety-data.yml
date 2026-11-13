@@ -1,6 +1,9 @@
 name: Refresh public safety facilities
 
 on:
+  push:
+    paths:
+      - ".github/workflows/refresh-safety-data.yml"
   workflow_dispatch:
   schedule:
     - cron: "17 18 * * *"
@@ -16,76 +19,143 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Fetch emergency bell data without exposing the service key
+      - name: Fetch approved public safety datasets (secret stays on runner)
         env:
           DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
         run: |
           python - <<'PY'
-          import json, os, urllib.parse, urllib.request, urllib.error, pathlib, sys
-          key = os.environ.get("DATA_GO_KR_SERVICE_KEY", "").strip()
-          if not key:
-              raise SystemExit("Repository secret DATA_GO_KR_SERVICE_KEY is not configured.")
-          base = "https://apis.data.go.kr/1741000/emergency_call_box_info"
-          pages = []
-          def find_rows(obj):
-              if isinstance(obj, list):
-                  if obj and isinstance(obj[0], dict): return obj
-                  for x in obj:
-                      got = find_rows(x)
-                      if got: return got
-              if isinstance(obj, dict):
-                  for v in obj.values():
-                      got = find_rows(v)
-                      if got: return got
-              return []
-          def find_total(obj):
-              if isinstance(obj, dict):
-                  for k, v in obj.items():
-                      if k.lower() in ("totalcount", "total_count"):
-                          try: return int(v)
-                          except (TypeError, ValueError): pass
-                      got = find_total(v)
-                      if got is not None: return got
-              elif isinstance(obj, list):
-                  for v in obj:
-                      got = find_total(v)
-                      if got is not None: return got
-              return None
-          for page in range(1, 501):
-              params = urllib.parse.urlencode({
-                  "serviceKey": key, "pageNo": page, "numOfRows": 100, "returnType": "json"
-              })
-              req = urllib.request.Request(base + "?" + params, headers={
-                  "User-Agent": "SafeWay-data-refresh/1.0", "Accept": "application/json"
-              })
-              try:
-                  with urllib.request.urlopen(req, timeout=45) as response:
-                      raw = response.read().decode("utf-8-sig")
-              except urllib.error.HTTPError as e:
-                  body = e.read().decode("utf-8-sig", errors="replace")
-                  print("공공데이터포털 HTTP 오류:", e.code, e.reason)
-                  print("응답 내용:", body[:3000])
-                  raise SystemExit("API request rejected; see sanitized provider response above.")
-              try:
-                  payload = json.loads(raw)
-              except json.JSONDecodeError:
-                  print("API가 JSON이 아닌 응답을 반환했습니다:", raw[:3000])
-                  raise
-              pages.append(payload)
-              rows = find_rows(payload)
-              total = find_total(payload)
-              if not rows or len(rows) < 100 or (total is not None and page * 100 >= total):
-                  break
+          import datetime, json, os, pathlib, time, urllib.parse, urllib.request, urllib.error
+
+          raw_key = os.environ.get("DATA_GO_KR_SERVICE_KEY", "").strip()
+          if not raw_key:
+              raise SystemExit("Missing repository secret DATA_GO_KR_SERVICE_KEY.")
+          # The portal provides both decoding and encoding keys. Decode once, then URL-encode once.
+          key = urllib.parse.unquote(raw_key)
           out = pathlib.Path("data")
           out.mkdir(exist_ok=True)
-          (out / "emergency-bells.json").write_text(json.dumps({
-              "source": "data.go.kr/15155046", "fetchedAt": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-              "pages": pages
-          }, ensure_ascii=False), encoding="utf-8")
+          status = {"checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "sources": {}}
+
+          def request_json(base, params):
+              query = urllib.parse.urlencode(params)
+              req = urllib.request.Request(base + "?" + query, headers={
+                  "User-Agent": "SafeWay-public-data-refresh/2.0",
+                  "Accept": "application/json"
+              })
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  raw = response.read().decode("utf-8-sig")
+              try:
+                  return json.loads(raw)
+              except json.JSONDecodeError:
+                  raise RuntimeError("Provider returned non-JSON response: " + raw[:400].replace("\n", " "))
+
+          def walk_rows(value, coord_keys, found):
+              if isinstance(value, list):
+                  for item in value:
+                      walk_rows(item, coord_keys, found)
+              elif isinstance(value, dict):
+                  keys = {str(k).upper() for k in value}
+                  if keys.intersection(coord_keys):
+                      found.append(value)
+                  for child in value.values():
+                      if isinstance(child, (dict, list)):
+                          walk_rows(child, coord_keys, found)
+
+          def total_count(value):
+              if isinstance(value, dict):
+                  for k, v in value.items():
+                      if str(k).lower() in ("totalcount", "total_count", "list_total_count", "totalrows"):
+                          try: return int(v)
+                          except (TypeError, ValueError): pass
+                      got = total_count(v)
+                      if got is not None: return got
+              elif isinstance(value, list):
+                  for v in value:
+                      got = total_count(v)
+                      if got is not None: return got
+              return None
+
+          def fetch_pages(base, param_style, max_rows=100):
+              all_rows = []
+              for page in range(1, 1001):
+                  params = {"serviceKey": key, "pageNo": page, "numOfRows": max_rows}
+                  if param_style == "bell":
+                      params["returnType"] = "json"
+                  else:
+                      params["type"] = "json"
+                  payload = request_json(base, params)
+                  # Detect and report provider error envelopes without printing any credentials.
+                  if "OpenAPI_ServiceResponse" in payload:
+                      msg = payload["OpenAPI_ServiceResponse"].get("cmmMsgHeader", {})
+                      raise RuntimeError("API rejected request: " + str(msg.get("returnAuthMsg") or msg.get("errMsg") or msg.get("returnReasonCode") or "unknown"))
+                  found = []
+                  coord_keys = {"LAT", "LATITUDE", "위도", "LONGITUDE", "LON", "LOT", "경도", "X", "Y"}
+                  walk_rows(payload, coord_keys, found)
+                  # Keep only records that contain both coordinate axes, or projected X/Y.
+                  rows = []
+                  for row in found:
+                      keys = {str(k).upper() for k in row}
+                      has_lat = bool(keys.intersection({"LAT","LATITUDE","위도"}))
+                      has_lon = bool(keys.intersection({"LON","LOT","LONGITUDE","경도"}))
+                      has_xy = "X" in keys and "Y" in keys
+                      if (has_lat and has_lon) or has_xy:
+                          rows.append(row)
+                  all_rows.extend(rows)
+                  total = total_count(payload)
+                  if len(rows) < max_rows or (total is not None and page * max_rows >= total):
+                      break
+                  time.sleep(0.15)
+              return all_rows
+
+          # 1) Official nationwide emergency-bell OpenAPI (data.go.kr dataset 15155046).
+          bell_url = "https://apis.data.go.kr/1741000/emergency_call_box_info"
+          try:
+              bells = fetch_pages(bell_url, "bell", 100)
+              if not bells:
+                  raise RuntimeError("API returned no coordinate records.")
+              (out / "emergency-bells.json").write_text(json.dumps({
+                  "source": "data.go.kr/15155046",
+                  "fetchedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                  "items": bells
+              }, ensure_ascii=False), encoding="utf-8")
+              status["sources"]["emergencyBells"] = {"ok": True, "count": len(bells)}
+          except Exception as e:
+              status["sources"]["emergencyBells"] = {"ok": False, "error": str(e)[:500]}
+
+          # 2) Nationwide security-light standard data API. Try the standard API service names
+          # used by the portal; only accept a response that contains actual coordinate rows.
+          light_candidates = [
+              "https://api.data.go.kr/openapi/tn_pubr_public_security_light_api",
+              "https://api.data.go.kr/openapi/tn_pubr_public_sec_light_api",
+              "https://api.data.go.kr/openapi/tn_pubr_public_security_lamp_api"
+          ]
+          light_error = "No documented service URL returned coordinate rows."
+          for light_url in light_candidates:
+              try:
+                  lights = fetch_pages(light_url, "standard", 1000)
+                  if not lights:
+                      raise RuntimeError("API returned no coordinate records.")
+                  (out / "security-lights.json").write_text(json.dumps({
+                      "source": "data.go.kr/15017320",
+                      "endpoint": light_url,
+                      "fetchedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                      "items": lights
+                  }, ensure_ascii=False), encoding="utf-8")
+                  status["sources"]["securityLights"] = {"ok": True, "count": len(lights)}
+                  break
+              except Exception as e:
+                  light_error = str(e)[:500]
+          else:
+              status["sources"]["securityLights"] = {"ok": False, "error": light_error}
+
+          (out / "source-status.json").write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding="utf-8")
+          print(json.dumps(status, ensure_ascii=False))
+          if not any(s.get("ok") for s in status["sources"].values()):
+              raise SystemExit("No public facility source could be refreshed. See source-status.json.")
+
           PY
       - name: Commit refreshed public data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/emergency-bells.json
-          git diff --cached --quiet || (git commit -m "Refresh emergency bell data" && git push)
+          git add data/
+          git diff --cached --quiet || (git commit -m "Refresh public safety facility data" && git push)
