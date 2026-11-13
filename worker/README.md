@@ -25,3 +25,12 @@ Supported query parameters:
 SafeMap's current security-light page documents WMS only and says its XML point-list output is still being prepared. The WMS can show the official security-light layer on a map, but it cannot provide a reliable per-route point count or address list. Emergency bells have a documented point-list endpoint at `/openapi2/IF_0032`; the GitHub Actions workflow downloads that list when the `SAFEMAP_SERVICE_KEY` repository secret is configured.
 
 The WMS service is marked Public Nuri Type 4 (attribution, non-commercial, no modifications). Preserve the returned image as-is and include attribution in the app.
+
+
+## Emergency-bell coordinate download (GitHub Actions)
+
+The repository workflow `.github/workflows/refresh-safety-data.yml` reads the same SafeMap credential from the repository Actions secret named `SAFEMAP_SERVICE_KEY`. Add it at:
+
+`https://github.com/cocoyerim2/-2/settings/secrets/actions/new`
+
+After saving the secret, open Actions → Refresh SafeMap emergency-bell data → Run workflow. The official endpoint is `/openapi2/IF_0032`, with `pageNo`, `numOfRows`, and `returnType=json`. Its documented coordinate fields are `lat` and `lon`.
