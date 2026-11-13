@@ -198,7 +198,7 @@
                             <i class="fa-solid fa-lightbulb text-warning"></i> 보안등 밀도
                         </span>
                         <p id="metricLights" class="text-sm font-bold text-choco-text mt-1">데이터 없음</p>
-                        <p class="text-[10px] text-choco-muted mt-0.5">실제 보안등 데이터 미연동</p>
+                        <p class="text-[10px] text-choco-muted mt-0.5">경로 주변 실제 등록 시설 수</p>
                     </div>
 
                     <div class="bg-choco-surface p-3 rounded-lg border border-choco-border">
@@ -206,7 +206,7 @@
                             <i class="fa-solid fa-bell text-mint"></i> 경로 상 비상벨
                         </span>
                         <p id="metricBells" class="text-sm font-bold text-choco-text mt-1">데이터 없음</p>
-                        <p class="text-[10px] text-choco-muted mt-0.5">실제 비상벨 데이터 미연동</p>
+                        <p class="text-[10px] text-choco-muted mt-0.5">경로 주변 실제 등록 시설 수</p>
                     </div>
                 </div>
 
@@ -616,48 +616,89 @@
         }
 
         // GitHub Actions가 인증키를 서버 측에서 사용해 생성한 공개 JSON만 읽습니다.
+        // Public JSON files are produced by GitHub Actions; no API key is ever sent to the browser.
         async function loadSafetyData() {
-            try {
-                const response = await fetch('./data/emergency-bells.json', { cache: 'no-store' });
-                if (!response.ok) throw new Error('시설 데이터 파일을 아직 생성하지 않았습니다.');
-                const payload = await response.json();
+            const pick = (obj, names) => {
+                if (!obj || typeof obj !== 'object') return null;
+                for (const name of names) {
+                    const key = Object.keys(obj).find(k => k.toUpperCase() === name.toUpperCase());
+                    if (key && obj[key] !== null && obj[key] !== '') return obj[key];
+                }
+                return null;
+            };
+            const collectRows = payload => {
                 const rows = [];
                 const walk = value => {
                     if (Array.isArray(value)) { value.forEach(walk); return; }
                     if (!value || typeof value !== 'object') return;
                     const keys = Object.keys(value).map(k => k.toUpperCase());
-                    if (keys.some(k => ['LAT','LATITUDE','LOT','LON','LONGITUDE','LNG'].includes(k))) rows.push(value);
+                    const hasLat = keys.some(k => ['LAT','LATITUDE','위도'].includes(k));
+                    const hasLon = keys.some(k => ['LON','LOT','LONGITUDE','경도'].includes(k));
+                    const hasXY = keys.includes('X') && keys.includes('Y');
+                    if ((hasLat && hasLon) || hasXY) rows.push(value);
                     Object.values(value).forEach(v => { if (v && typeof v === 'object') walk(v); });
                 };
-                walk(payload.pages || payload);
-                const pick = (obj, names) => {
-                    for (const name of names) {
-                        const key = Object.keys(obj).find(k => k.toUpperCase() === name);
-                        if (key && obj[key] !== null && obj[key] !== '') return obj[key];
-                    }
-                    return null;
-                };
-                SAFETY_DATA = rows.map((row, index) => {
-                    let lat = Number(pick(row, ['LAT','LATITUDE','Y']));
-                    let lng = Number(pick(row, ['LON','LOT','LNG','LONGITUDE','X']));
-                    // 비상벨 API의 좌표가 EPSG:5174 투영좌표로 내려오는 경우 WGS84로 변환
-                    if ((Math.abs(lat) > 90 || Math.abs(lng) > 180) && window.proj4) {
-                        const converted = proj4('EPSG:5174', 'EPSG:4326', [lat, lng]);
+                walk(payload && (payload.items || payload.pages || payload));
+                return rows;
+            };
+            const normalize = (row, index, category) => {
+                let lat = Number(pick(row, ['LAT','LATITUDE','위도','WGS84위도']));
+                let lng = Number(pick(row, ['LON','LOT','LONGITUDE','경도','WGS84경도']));
+                if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+                    const x = Number(pick(row, ['X','X좌표','X_CRDNT','LCTN_X_CRDNT']));
+                    const y = Number(pick(row, ['Y','Y좌표','Y_CRDNT','LCTN_Y_CRDNT']));
+                    if (Number.isFinite(x) && Number.isFinite(y) && window.proj4) {
+                        // EPSG:5174 uses X=easting, Y=northing.
+                        const converted = proj4('EPSG:5174', 'EPSG:4326', [x, y]);
                         lng = converted[0]; lat = converted[1];
                     }
-                    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-                    return {
-                        id: pick(row, ['OBJT_ID','ID','SFTY_EMRGNCBLL_ID']) || 'bell-' + index,
-                        name: pick(row, ['SFTY_EMRGNCBLL_NM','FCLTY_NM','INSTL_PLC_NM','LCTN_ROAD_NM_ADDR','ADRES']) || '안전 비상벨',
-                        type: pick(row, ['INSTL_TYPE','SFTY_EMRGNCBLL_TYPE','INS_TYPE']) || '공공데이터 등록 시설',
-                        lat, lng, category: 'bell'
-                    };
-                }).filter(Boolean);
-                document.getElementById('bellCountBadge').textContent = '공공데이터 비상벨 ' + SAFETY_DATA.length + '개 로드';
-                if (currentRouteCoordinates.length > 1) renderSafetyMarkers();
-            } catch (error) {
-                document.getElementById('bellCountBadge').textContent = '비상벨 데이터 준비 중';
-                showError('공공데이터 연동 안내', '비상벨 데이터가 아직 생성되지 않았습니다. GitHub 저장소의 DATA_GO_KR_SERVICE_KEY 비밀값을 등록한 뒤 Actions에서 Refresh public safety facilities를 실행해주세요.');
+                }
+                if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+                const isBell = category === 'bell';
+                return {
+                    id: String(pick(row, isBell ? ['OBJT_ID','ID','SFTY_EMRGNCBLL_ID'] : ['MANAGE_NO','LIGHT_ID','SECURITY_LIGHT_ID','관리번호']) || category + '-' + index),
+                    name: String(pick(row, isBell
+                        ? ['INS_DETAIL','FCLTY_NM','FCLTY_TY','SFTY_EMRGNCBLL_NM','RN_ADRES','LCTN_ROAD_NM_ADDR','ADRES']
+                        : ['SECURITY_LIGHT_NM','LIGHT_NM','LAMP_NM','보안등위치명','RDNMADR','LCTN_ROAD_NM_ADDR','소재지도로명주소','LNMADR','소재지지번주소']) || (isBell ? '안전 비상벨' : '보안등')),
+                    type: String(pick(row, isBell ? ['INS_TYPE','INS_PURPOS','FCLTY_TY'] : ['INSTL_TYPE','설치형태','LIGHT_TYPE']) || (isBell ? '공공데이터 등록 시설' : '공공데이터 등록 보안등')),
+                    address: String(pick(row, isBell ? ['RN_ADRES','ADRES','LCTN_ROAD_NM_ADDR'] : ['RDNMADR','LNMADR','소재지도로명주소','소재지지번주소']) || ''),
+                    lat, lng, category
+                };
+            };
+            const loadFile = async path => {
+                const response = await fetch('./data/' + path + '?v=' + Date.now(), { cache: 'no-store' });
+                if (!response.ok) throw new Error(path + ' 파일 없음 (' + response.status + ')');
+                return response.json();
+            };
+            const results = await Promise.allSettled([
+                loadFile('emergency-bells.json'),
+                loadFile('security-lights.json')
+            ]);
+            const next = [];
+            let bellError = '', lightError = '';
+            if (results[0].status === 'fulfilled') {
+                next.push(...collectRows(results[0].value).map((row, i) => normalize(row, i, 'bell')).filter(Boolean));
+            } else bellError = results[0].reason?.message || '비상벨 데이터 파일을 읽지 못했습니다.';
+            if (results[1].status === 'fulfilled') {
+                next.push(...collectRows(results[1].value).map((row, i) => normalize(row, i, 'light')).filter(Boolean));
+            } else lightError = results[1].reason?.message || '보안등 데이터 파일을 읽지 못했습니다.';
+            SAFETY_DATA = next;
+            const totalBells = next.filter(x => x.category === 'bell').length;
+            const totalLights = next.filter(x => x.category === 'light').length;
+            document.getElementById('bellCountBadge').textContent =
+                '공공데이터 로드 · 비상벨 ' + totalBells.toLocaleString() + '개 · 보안등 ' + totalLights.toLocaleString() + '개';
+            if (totalBells) {
+                document.getElementById('metricBells').textContent = totalBells.toLocaleString() + '개 등록';
+                document.getElementById('metricBells').nextElementSibling.textContent = '전국 공공데이터 기준';
+            }
+            if (totalLights) {
+                document.getElementById('metricLights').textContent = totalLights.toLocaleString() + '개 등록';
+                document.getElementById('metricLights').nextElementSibling.textContent = '전국 공공데이터 기준';
+            }
+            if (currentRouteCoordinates.length > 1) renderSafetyMarkers();
+            if (bellError || lightError) {
+                const details = [bellError && '비상벨: ' + bellError, lightError && '보안등: ' + lightError].filter(Boolean).join(' / ');
+                showError('공공데이터 일부 미연결', details + '. GitHub Actions의 source-status.json에서 원인을 확인할 수 있습니다.');
             }
         }
 
@@ -666,44 +707,44 @@
             const bellListContainer = document.getElementById('bellListContainer');
             const bellCountBadge = document.getElementById('bellCountBadge');
             bellListContainer.innerHTML = '';
-
             if (!currentRouteCoordinates || currentRouteCoordinates.length < 2) {
                 bellCountBadge.textContent = '경로 검색 후 주변 시설 표시';
                 return;
             }
-
             const nearbyItems = SAFETY_DATA
-                .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number' && Number.isFinite(item.lat) && Number.isFinite(item.lng))
+                .filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lng))
                 .map(item => {
                     const nearest = getDistanceFromRoute(item.lat, item.lng, currentRouteCoordinates);
                     return { ...item, routeDistance: nearest.distance, routeProgress: nearest.progress };
                 })
                 .filter(item => item.routeDistance <= ROUTE_NEARBY_RADIUS_METERS)
                 .sort((a, b) => a.routeProgress - b.routeProgress);
-
             const nearbyBells = nearbyItems.filter(item => item.category === 'bell');
-            bellCountBadge.textContent = '경로 반경 350m · 비상벨 ' + nearbyBells.length + '개';
-
+            const nearbyLights = nearbyItems.filter(item => item.category === 'light');
+            document.getElementById('metricBells').textContent = nearbyBells.length.toLocaleString() + '개';
+            document.getElementById('metricBells').nextElementSibling.textContent = '경로 반경 350m 내 실제 등록 시설';
+            document.getElementById('metricLights').textContent = nearbyLights.length.toLocaleString() + '개';
+            document.getElementById('metricLights').nextElementSibling.textContent = '경로 반경 350m 내 실제 등록 시설';
+            bellCountBadge.textContent = '경로 반경 350m · 비상벨 ' + nearbyBells.length + '개 · 보안등 ' + nearbyLights.length + '개';
             nearbyItems.forEach(item => {
                 const pos = new kakao.maps.LatLng(item.lat, item.lng);
                 if (item.category === 'light' && isShowLights) {
-                    const circle = new kakao.maps.Circle({
-                        center: pos, radius: 12, strokeWeight: 1,
+                    const marker = new kakao.maps.Circle({
+                        center: pos, radius: 10, strokeWeight: 1,
                         strokeColor: '#121614', strokeOpacity: 0.8,
-                        fillColor: '#E9C46A', fillOpacity: 0.7
+                        fillColor: '#E9C46A', fillOpacity: 0.78
                     });
-                    circle.setMap(map);
-                    markers.push(circle);
+                    marker.setMap(map);
+                    markers.push(marker);
                 }
                 if (item.category === 'bell' && isShowBells) {
-                    const bellCircle = new kakao.maps.Circle({
+                    const marker = new kakao.maps.Circle({
                         center: pos, radius: 14, strokeWeight: 2,
                         strokeColor: '#17362B', strokeOpacity: 0.9,
-                        fillColor: '#4ECCA3', fillOpacity: 0.85
+                        fillColor: '#4ECCA3', fillOpacity: 0.9
                     });
-                    bellCircle.setMap(map);
-                    markers.push(bellCircle);
-
+                    marker.setMap(map);
+                    markers.push(marker);
                     const listItem = document.createElement('div');
                     listItem.className = 'bg-choco-surface p-2 rounded-lg border border-choco-border text-xs flex justify-between items-center hover:border-mint transition-colors cursor-pointer';
                     listItem.innerHTML = `
@@ -711,7 +752,7 @@
                             <i class="fa-solid fa-bell text-mint text-xs"></i>
                             <div class="min-w-0">
                                 <p class="font-bold text-choco-text text-[11px] truncate">${escapeHtml(item.name || '안전 비상벨')}</p>
-                                <p class="text-[10px] text-choco-muted">${escapeHtml(item.type || '표준형')} · 경로에서 ${Math.round(item.routeDistance)}m</p>
+                                <p class="text-[10px] text-choco-muted">${escapeHtml(item.address || item.type || '공공데이터 등록')} · 경로에서 ${Math.round(item.routeDistance)}m</p>
                             </div>
                         </div>
                         <button type="button" class="text-[10px] font-medium text-mint bg-choco-base border border-choco-border px-2 py-0.5 rounded shrink-0">위치</button>
@@ -720,7 +761,6 @@
                     bellListContainer.appendChild(listItem);
                 }
             });
-
             if (nearbyBells.length === 0) {
                 const empty = document.createElement('p');
                 empty.className = 'text-[11px] text-choco-muted p-3 text-center';
