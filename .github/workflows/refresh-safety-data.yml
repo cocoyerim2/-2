@@ -1,4 +1,5 @@
 name: Refresh SafeMap emergency-bell data
+# Triggered by workflow updates so the latest repository secret can be tested.
 
 on:
   push:
