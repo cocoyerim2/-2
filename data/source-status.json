@@ -1,9 +1,9 @@
 {
-  "checkedAt": "2026-11-13T06:24:25.130380+00:00",
+  "checkedAt": "2026-11-13T06:29:18.858727+00:00",
   "sources": {
     "emergencyBells": {
       "ok": false,
-      "error": "HTTP Error 500: "
+      "error": "SafeMap HTTP 500: <response>\n  <header>\n    <resultCode>30</resultCode>\n    <resultMsg>SERVICE_KEY_IS_NOT_REGISTERED_ERROR</resultMsg>\n    <errorMsg>등록되지 않은 서비스키</errorMsg>\n  </header>\n  <body>\n    <items/>\n  </body>\n</response>\n"
     },
     "securityLights": {
       "ok": false,
