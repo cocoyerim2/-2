@@ -62,9 +62,9 @@ jobs:
                           "serviceKey": key,
                           "pageNo": page,
                           "numOfRows": 100,
-                          "returnType": "json"
+                          "returnType": "xml"
                       })
-                      url = "https://www.safemap.go.kr/openapi2/IF_0032?" + params
+                      url = "http://safemap.go.kr/openapi2/IF_0032?" + params
                       req = urllib.request.Request(url, headers={"User-Agent": "SafeWay/1.0", "Accept": "application/json"})
                       with urllib.request.urlopen(req, timeout=60) as res:
                           raw = res.read().decode("utf-8-sig")
@@ -72,7 +72,21 @@ jobs:
                           payload = json.loads(raw)
                       except json.JSONDecodeError:
                           root = ET.fromstring(raw)
-                          payload = {child.tag: child.text for child in root.iter() if child.text and len(child) == 0}
+                          def xml_value(element):
+                              children = list(element)
+                              if not children:
+                                  return (element.text or "").strip()
+                              result = {}
+                              for child in children:
+                                  value = xml_value(child)
+                                  if child.tag in result:
+                                      if not isinstance(result[child.tag], list):
+                                          result[child.tag] = [result[child.tag]]
+                                      result[child.tag].append(value)
+                                  else:
+                                      result[child.tag] = value
+                              return result
+                          payload = xml_value(root)
                       rows = []
                       walk(payload, rows)
                       if not rows and page == 1:
