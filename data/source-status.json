@@ -1,9 +1,9 @@
 {
-  "checkedAt": "2026-11-13T06:21:10.626481+00:00",
+  "checkedAt": "2026-11-13T06:23:55.219333+00:00",
   "sources": {
     "emergencyBells": {
       "ok": false,
-      "message": "SAFEMAP_SERVICE_KEY secret is not configured."
+      "error": "HTTP Error 500: "
     },
     "securityLights": {
       "ok": false,
