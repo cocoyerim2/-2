@@ -730,20 +730,21 @@
             bellCountBadge.textContent = '경로 반경 350m · 비상벨 ' + nearbyBells.length + '개 · 보안등 ' + nearbyLights.length + '개';
             nearbyItems.forEach(item => {
                 const pos = new kakao.maps.LatLng(item.lat, item.lng);
+                // 안전시설은 카카오 기본 핀이 아닌 범례와 같은 원형 오버레이로 표시
                 if (item.category === 'light' && isShowLights) {
                     const marker = new kakao.maps.Circle({
-                        center: pos, radius: 10, strokeWeight: 1,
-                        strokeColor: '#121614', strokeOpacity: 0.8,
-                        fillColor: '#E9C46A', fillOpacity: 0.78
+                        center: pos, radius: 5, strokeWeight: 1,
+                        strokeColor: '#6B5420', strokeOpacity: 0.95,
+                        fillColor: '#E9C46A', fillOpacity: 0.95
                     });
                     marker.setMap(map);
                     markers.push(marker);
                 }
                 if (item.category === 'bell' && isShowBells) {
                     const marker = new kakao.maps.Circle({
-                        center: pos, radius: 14, strokeWeight: 2,
-                        strokeColor: '#17362B', strokeOpacity: 0.9,
-                        fillColor: '#4ECCA3', fillOpacity: 0.9
+                        center: pos, radius: 7, strokeWeight: 1,
+                        strokeColor: '#17362B', strokeOpacity: 0.95,
+                        fillColor: '#4ECCA3', fillOpacity: 0.95
                     });
                     marker.setMap(map);
                     markers.push(marker);
