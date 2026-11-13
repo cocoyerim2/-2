@@ -642,8 +642,10 @@
                 return rows;
             };
             const normalize = (row, index, category) => {
-                let lat = Number(pick(row, ['LAT','LATITUDE','위도','WGS84위도']));
-                let lng = Number(pick(row, ['LON','LOT','LONGITUDE','경도','WGS84경도']));
+                const rawLat = pick(row, ['LAT','LATITUDE','위도','WGS84위도']);
+                const rawLng = pick(row, ['LON','LOT','LONGITUDE','경도','WGS84경도']);
+                let lat = rawLat === null ? NaN : Number(rawLat);
+                let lng = rawLng === null ? NaN : Number(rawLng);
                 if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
                     const x = Number(pick(row, ['X','X좌표','X_CRDNT','LCTN_X_CRDNT']));
                     const y = Number(pick(row, ['Y','Y좌표','Y_CRDNT','LCTN_Y_CRDNT']));
