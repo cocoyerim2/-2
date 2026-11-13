@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-11-13T06:21:10.626481+00:00",
+  "sources": {
+    "emergencyBells": {
+      "ok": false,
+      "message": "SAFEMAP_SERVICE_KEY secret is not configured."
+    },
+    "securityLights": {
+      "ok": false,
+      "mode": "WMS",
+      "message": "Official SafeMap security-light point-list XML/JSON is marked as not yet provided. WMS layer is available through the secure proxy in worker/safemap-proxy.js."
+    }
+  }
+}
