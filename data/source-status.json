@@ -1,9 +1,9 @@
 {
-  "checkedAt": "2026-11-13T06:43:05.366679+00:00",
+  "checkedAt": "2026-11-13T23:34:23.605059+00:00",
   "sources": {
     "emergencyBells": {
-      "ok": true,
-      "count": 77916
+      "ok": false,
+      "error": "<urlopen error timed out>"
     },
     "securityLights": {
       "ok": false,
